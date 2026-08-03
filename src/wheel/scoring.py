@@ -8,8 +8,8 @@ from typing import Any, Mapping, Sequence
 
 import pandas as pd
 
-from wheel_screener.data import TickerSnapshot
-from wheel_screener.screening import GateResult
+from .snapshot import TickerSnapshot
+from .gates import GateResult
 
 
 IV_PROXY_APPROXIMATION = (

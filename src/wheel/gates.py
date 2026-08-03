@@ -8,7 +8,7 @@ import math
 from numbers import Real
 from typing import Any, Mapping
 
-from wheel_screener.data import TickerSnapshot
+from .snapshot import TickerSnapshot
 
 
 @dataclass(frozen=True)

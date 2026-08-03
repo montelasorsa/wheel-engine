@@ -7,11 +7,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from wheel_screener.screening import (
-    compute_diff,
-    load_prior_state,
-    save_current_state,
-)
+from wheel.diff import compute_diff
+from wheel.state_io import load_prior_state, save_current_state
 
 
 FIXTURES = Path(__file__).parent / "fixtures"

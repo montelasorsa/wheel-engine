@@ -1,4 +1,4 @@
-"""Offline fixture tests for the pure Step 6 report and CSV renderers."""
+"""Offline fixture tests for the pure CSV interchange renderer."""
 
 from __future__ import annotations
 
@@ -11,24 +11,23 @@ from pathlib import Path
 
 import pandas as pd
 
-from wheel_screener.data import TickerSnapshot
-from wheel_screener.reporting import PipelineResult
-from wheel_screener.reporting.render import (
+from wheel.snapshot import TickerSnapshot
+from wheel.result import PipelineResult
+from wheel.csv_output import (
     CSV_COLUMNS,
     build_csv_rows,
     render_csv,
-    render_html,
-    write_report_and_csv,
+    write_csv,
 )
-from wheel_screener.scoring.flags import EarningsProximityFlag, FlaggedScoredTicker
-from wheel_screener.scoring.score_filters import (
+from wheel.flags import EarningsProximityFlag, FlaggedScoredTicker
+from wheel.scoring import (
     IV_PROXY_APPROXIMATION,
     ScoredTicker,
     ScoreResult,
 )
-from wheel_screener.screening.hard_gates import GateFailureKind, GateResult
-from wheel_screener.screening.pipeline import EvaluatedTicker, HardGateBuckets
-from wheel_screener.screening.step5_pipeline import Step5PipelineOutput
+from wheel.gates import GateFailureKind, GateResult
+from wheel.partition import EvaluatedTicker, HardGateBuckets
+from wheel.run_state import Step5PipelineOutput
 
 
 RUN_TIMESTAMP = datetime(2026, 7, 25, 19, 28, 22)
@@ -44,13 +43,7 @@ def empty_frame() -> pd.DataFrame:
     return pd.DataFrame({"date": [], "close": [], "adjusted_close": []})
 
 
-def make_snapshot(symbol: str, *, field_sources: dict | None = None) -> TickerSnapshot:
-    # Every real snapshot's field_sources is a full provenance map -- every
-    # populated fundamental tagged "yfinance", not just rescued ones (see
-    # build_ticker_snapshot). Baking that in here catches renderers that treat
-    # key presence, rather than the "fmp" value, as the rescue signal.
-    sources = {"company_name": "yfinance", "current_price": "yfinance"}
-    sources.update(field_sources or {})
+def make_snapshot(symbol: str) -> TickerSnapshot:
     return TickerSnapshot(
         symbol=symbol,
         fundamentals={
@@ -65,7 +58,6 @@ def make_snapshot(symbol: str, *, field_sources: dict | None = None) -> TickerSn
         analyst={"recommendation_mean": 2.0},
         recommendation_summary=pd.DataFrame(),
         option_expirations=("2026-08-21",),
-        field_sources=sources,
     )
 
 
@@ -175,11 +167,7 @@ def build_fixture(diff: dict) -> PipelineResult:
     )
     missing_data = (
         EvaluatedTicker(
-            # Provenance carried through even while the rescue is dormant.
-            snapshot=make_snapshot(
-                "HBAN",
-                field_sources={"operating_cash_flow_ttm": "fmp"},
-            ),
+            snapshot=make_snapshot("HBAN"),
             gate_results=(
                 GateResult(
                     gate_id="F1",
@@ -261,105 +249,6 @@ SECOND_RUN_DIFF = {
 }
 
 
-class RenderHtmlTests(unittest.TestCase):
-    """Section order, change-log branches, and provenance rendering."""
-
-    def test_sections_render_in_specified_order(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        anchors = [
-            'id="header"',
-            'id="changelog"',
-            'id="ranked"',
-            'id="missing-data"',
-            'id="fetch-errors"',
-            'id="fitness-fail"',
-        ]
-        positions = [html.index(anchor) for anchor in anchors]
-        self.assertEqual(positions, sorted(positions))
-
-    def test_header_reports_every_bucket_total(self) -> None:
-        html = render_html(build_fixture(FIRST_RUN_DIFF))
-        self.assertIn("Universe", html)
-        self.assertIn("<b>6</b>", html)  # universe size
-        self.assertIn("30.72%", html)  # F5 volatility benchmark
-        self.assertIn(IV_PROXY_APPROXIMATION, html)
-
-    def test_first_run_shows_notice_not_empty_tables(self) -> None:
-        html = render_html(build_fixture(FIRST_RUN_DIFF))
-        self.assertIn("First run — no comparison available yet", html)
-        self.assertNotIn("Newly qualified", html)
-        self.assertNotIn("Newly dropped", html)
-
-    def test_second_run_shows_both_change_lists_with_reason(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("Newly qualified (1)", html)
-        self.assertIn("Newly dropped (1)", html)
-        self.assertIn("PFE", html)
-        self.assertIn("Mean analyst rating 2.61", html)
-        self.assertIn("2 names still qualify", html)
-
-    def test_f10_renders_dated_chip_per_proximity_band(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("f10-warning", html)  # ORCL at 10 days
-        self.assertIn("(10d)", html)
-        self.assertIn("f10-far", html)  # WY at 52 days
-        self.assertIn("f10-unknown", html)  # GEN has no calendar
-        self.assertIn("no calendar data", html)
-
-    def test_composite_bar_width_tracks_score(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("width: 94.5%", html)
-        self.assertIn("width: 71.0%", html)
-
-    def test_missing_data_shows_blocking_gate_and_source_label(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("HBAN", html)
-        self.assertIn("Cannot evaluate: missing operating_cash_flow_ttm.", html)
-        self.assertIn("operating_cash_flow_ttm via fmp", html)
-        # Plain yfinance provenance must not render as a rescue chip.
-        self.assertNotIn("via yfinance", html)
-
-    def test_ranked_cell_stacks_business_identity(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("ORCL Incorporated", html)
-        self.assertIn("Industrials — Specialty Widgets", html)
-        self.assertIn("$45.71B", html)
-
-    def test_filter_cells_show_score_and_raw_metric(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("100 · 4.12% / 22.33%", html)  # F5 max move / realized vol
-        self.assertIn("100 · 2.31%", html)  # F6 dividend yield
-        self.assertIn("88 · 31.55%", html)  # F7 realized vol proxy
-        self.assertIn("100 · 18.42%", html)  # F8 pct below 2y high
-        self.assertIn("66 · 2.00", html)  # F2 margin · recommendation mean
-
-    def test_missing_data_shows_expected_vs_actual(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("net_income_ttm = $1,400M present", html)
-        self.assertIn("operating_cash_flow_ttm = null", html)
-
-    def test_change_log_rows_carry_company_names(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        # GEN newly qualified: has a snapshot this run, so its name joins.
-        self.assertIn("GEN Incorporated", html)
-        # PFE newly dropped with no snapshot in this run's buckets: ticker alone.
-        self.assertNotIn("PFE Incorporated", html)
-
-    def test_fetch_errors_are_listed_explicitly(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("Fetch errors (1)", html)
-        self.assertIn("ANSS", html)
-
-    def test_fitness_fail_is_a_count_not_a_list(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        self.assertIn("1 names failed fitness gates — see CSV for details.", html)
-
-    def test_report_is_self_contained(self) -> None:
-        html = render_html(build_fixture(SECOND_RUN_DIFF))
-        for external in ("http://", "https://", "<script"):
-            self.assertNotIn(external, html)
-
-
 class RenderCsvTests(unittest.TestCase):
     """Schema shape, null handling, and the metrics recovered from Step 6."""
 
@@ -369,7 +258,7 @@ class RenderCsvTests(unittest.TestCase):
 
     def test_header_matches_specified_column_order(self) -> None:
         self.assertEqual(tuple(self.rows[0]), CSV_COLUMNS)
-        self.assertEqual(len(self.rows[0]), 34)
+        self.assertEqual(len(self.rows[0]), 33)
         # Business context sits immediately after ticker, before verdict.
         self.assertEqual(
             self.rows[0][0:7],
@@ -404,7 +293,7 @@ class RenderCsvTests(unittest.TestCase):
         self.assertEqual(len(self.rows), len(UNIVERSE) + 1)
         self.assertEqual([row[0] for row in self.rows[1:]], list(UNIVERSE))
         for row in self.rows[1:]:
-            self.assertEqual(len(row), 34)
+            self.assertEqual(len(row), 33)
 
     def test_business_context_and_gate_metrics_in_scored_row(self) -> None:
         row = dict(zip(CSV_COLUMNS, self.rows[1]))
@@ -473,37 +362,26 @@ class RenderCsvTests(unittest.TestCase):
             self.assertEqual(row[column], "")
         self.assertEqual(row["f7_is_approximation"], "true")
 
-    def test_rescued_field_provenance_reaches_the_csv(self) -> None:
+    def test_missing_data_row_keeps_business_context(self) -> None:
         row = dict(zip(CSV_COLUMNS, self.rows[5]))
         self.assertEqual(row["ticker"], "HBAN")
         self.assertEqual(row["verdict"], "missing_data")
-        self.assertEqual(row["fmp_rescued_fields"], "operating_cash_flow_ttm")
-
-    def test_dormant_rescue_leaves_provenance_empty(self) -> None:
-        row = dict(zip(CSV_COLUMNS, self.rows[1]))
-        self.assertEqual(row["fmp_rescued_fields"], "")
+        self.assertEqual(row["company_name"], "HBAN Incorporated")
 
     def test_rows_are_built_purely(self) -> None:
         result = build_fixture(SECOND_RUN_DIFF)
         self.assertEqual(build_csv_rows(result), build_csv_rows(result))
 
 
-class WriteReportAndCsvTests(unittest.TestCase):
-    """The single IO edge: paired filenames, atomic write, no leftovers."""
+class WriteCsvTests(unittest.TestCase):
+    """The single IO edge: timestamped filename, atomic write, no leftovers."""
 
-    def test_writes_paired_timestamped_files(self) -> None:
+    def test_writes_timestamped_csv(self) -> None:
         result = build_fixture(SECOND_RUN_DIFF)
         with tempfile.TemporaryDirectory() as directory:
-            report_path, csv_path = write_report_and_csv(
-                result,
-                directory,
-                RUN_TIMESTAMP,
-            )
-            self.assertEqual(report_path.name, "report_2026-07-25-192822.html")
+            csv_path = write_csv(result, directory, RUN_TIMESTAMP)
             self.assertEqual(csv_path.name, "candidates_2026-07-25-192822.csv")
-            self.assertTrue(report_path.exists())
             self.assertTrue(csv_path.exists())
-            self.assertEqual(report_path.read_text(), render_html(result))
             self.assertEqual(csv_path.read_text(), render_csv(result))
             # Temp siblings must not survive, and must not shadow state files.
             leftovers = sorted(p.name for p in Path(directory).glob("*.tmp"))

@@ -2,13 +2,13 @@ project:
   name: wheel-screener
   component: A
 
-# Dormant by default: universe missing-data rates do not justify paid rescue.
-RESCUE_ENABLED: false
-
+# Absolute on purpose. The repo moved out of the iCloud tree to
+# ~/Developer/wheel-engine, so the sibling-relative paths this file used to
+# carry now resolve next to the repo instead of next to the governance docs.
 paths:
-  governance: ../WheelGovernance/
-  research: ../Research/
-  output: ../WheelOps/
+  governance: /Users/montelasorsa/Documents/Projects/Active/The Wheel/WheelGovernance/
+  research: /Users/montelasorsa/Documents/Projects/Active/The Wheel/Research/
+  output: /Users/montelasorsa/Documents/Projects/Active/The Wheel/WheelOps/
 
 universe:
   file: config/universe.csv

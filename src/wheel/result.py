@@ -16,10 +16,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from wheel_screener.scoring import FlaggedScoredTicker
-from wheel_screener.screening.pipeline import HardGateBuckets
-from wheel_screener.screening.diff import RunDiff, RunState
-from wheel_screener.screening.step5_pipeline import Step5PipelineOutput
+from .flags import FlaggedScoredTicker
+from .partition import HardGateBuckets
+from .diff import RunDiff, RunState
+from .run_state import Step5PipelineOutput
 
 
 @dataclass(frozen=True)

@@ -8,7 +8,7 @@ from typing import Any, Mapping, Sequence
 
 import pandas as pd
 
-from .score_filters import ScoredTicker
+from .scoring import ScoredTicker
 
 
 @dataclass(frozen=True)

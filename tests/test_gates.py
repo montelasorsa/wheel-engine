@@ -6,8 +6,8 @@ import unittest
 
 import pandas as pd
 
-from wheel_screener.data import TickerSnapshot
-from wheel_screener.screening import (
+from wheel.snapshot import TickerSnapshot
+from wheel.gates import (
     GateFailureKind,
     HardGateThresholds,
     evaluate_hard_gates,

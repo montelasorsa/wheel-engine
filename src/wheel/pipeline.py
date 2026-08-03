@@ -1,9 +1,9 @@
-"""Composition root: wires the existing pure components into one run.
+"""Composition root: wires the pure components into one run.
 
-This module holds no screening logic of its own. Every rule lives in
-`screening` and `scoring`; this only loads config, fetches, and calls them in
-order. `run_pipeline` is importable so the Step 7 serve route can call it
-directly rather than shelling out.
+This module holds no screening logic of its own. Every rule lives in `gates`,
+`scoring` and `flags`; this only loads config, fetches through the MCP data
+boundary, and calls them in order. `run_pipeline` is importable so a plugin
+skill can call it directly rather than shelling out.
 """
 
 from __future__ import annotations
@@ -15,28 +15,28 @@ from typing import Any, Mapping
 
 import yaml
 
-from wheel_screener.data import (
+from wheel_mcp.yahoo import (
     DEFAULT_REQUEST_THROTTLE,
-    TickerSnapshot,
     fetch_earnings_calendar,
     fetch_ticker_snapshot,
     yfinance_policy_from_config,
 )
-from wheel_screener.reporting import PipelineResult, write_report_and_csv
-from wheel_screener.scoring import (
+
+from .csv_output import write_csv
+from .gates import hard_gate_thresholds_from_config
+from .partition import (
+    evaluate_hard_gates_for_snapshots,
+    partition_evaluated_hard_gates,
+)
+from .result import PipelineResult
+from .run_state import finalize_step5_run
+from .scoring import (
     composite_weights_from_config,
     compute_universe_volatility_percentile,
     score_eligible_snapshot,
     scoring_thresholds_from_config,
 )
-from wheel_screener.screening import (
-    evaluate_hard_gates_for_snapshots,
-    hard_gate_thresholds_from_config,
-    partition_evaluated_hard_gates,
-    rescue_enabled_from_config,
-    rescue_operating_cash_flow_ttm,
-)
-from wheel_screener.screening.step5_pipeline import finalize_step5_run
+from .snapshot import TickerSnapshot
 
 PROGRESS_EVERY = 25
 
@@ -70,20 +70,6 @@ def load_universe_symbols(
     return tuple(symbols)
 
 
-def _fmp_value_fetcher() -> Any:
-    """Build the FMP callable lazily so a dormant rescue needs no API key."""
-
-    def fetch(symbol: str) -> float | None:
-        from wheel_screener.data import (
-            fetch_fmp_operating_cash_flow_ttm,
-            load_fmp_api_key,
-        )
-
-        return fetch_fmp_operating_cash_flow_ttm(symbol, load_fmp_api_key())
-
-    return fetch
-
-
 def run_pipeline(config_path: str | Path = "config.yaml") -> PipelineResult:
     """Fetch, gate, score, flag, diff and persist one full universe run."""
 
@@ -96,7 +82,7 @@ def run_pipeline(config_path: str | Path = "config.yaml") -> PipelineResult:
     gate_thresholds = hard_gate_thresholds_from_config(config)
     scoring_thresholds = scoring_thresholds_from_config(config)
     weights = composite_weights_from_config(config)
-    output_dir = (base_dir / config["paths"]["output"]).resolve()
+    output_dir = Path(config["paths"]["output"]).expanduser().resolve()
 
     # One timestamp for the whole run, so state, report and CSV are pairable.
     run_timestamp = datetime.now()
@@ -131,19 +117,6 @@ def run_pipeline(config_path: str | Path = "config.yaml") -> PipelineResult:
         print(f"FETCH-ERRORS {len(fetch_failures)} kinds={','.join(kinds)}", flush=True)
 
     evaluated = evaluate_hard_gates_for_snapshots(snapshots, gate_thresholds)
-    rescue_enabled = rescue_enabled_from_config(config)
-    if rescue_enabled:
-        batch = rescue_operating_cash_flow_ttm(
-            evaluated,
-            gate_thresholds,
-            _fmp_value_fetcher(),
-            enabled=True,
-        )
-        evaluated = batch.evaluated_tickers
-        print(f"RESCUE queried={len(batch.queried_symbols)}", flush=True)
-    else:
-        print("RESCUE dormant (RESCUE_ENABLED=false)", flush=True)
-
     buckets = partition_evaluated_hard_gates(evaluated)
     print(
         f"GATES passed={len(buckets.passed)} "
@@ -209,11 +182,10 @@ def run_pipeline(config_path: str | Path = "config.yaml") -> PipelineResult:
 
 if __name__ == "__main__":
     result = run_pipeline("config.yaml")
-    report_path, csv_path = write_report_and_csv(
+    csv_path = write_csv(
         result,
         result.step5.state_path.parent,
         result.run_timestamp,
     )
-    print(f"STATE  {result.step5.state_path}", flush=True)
-    print(f"REPORT {report_path}", flush=True)
-    print(f"CSV    {csv_path}", flush=True)
+    print(f"STATE {result.step5.state_path}", flush=True)
+    print(f"CSV   {csv_path}", flush=True)

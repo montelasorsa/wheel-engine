@@ -1,0 +1,9 @@
+{
+  "name": "wheel-engine",
+  "description": "AdVenture Labs Wheel Engine: deterministic options-wheel screening, decision logging, and weekly review. Shows and ranks candidates; never decides or trades.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Monte La Sorsa"
+  },
+  "keywords": ["trading", "options", "wheel", "screener"]
+}

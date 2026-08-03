@@ -1,0 +1,70 @@
+project:
+  name: wheel-screener
+  component: A
+
+# Absolute on purpose. The repo moved out of the iCloud tree to
+# ~/Developer/wheel-engine, so the sibling-relative paths this file used to
+# carry now resolve next to the repo instead of next to the governance docs.
+paths:
+  governance: /Users/montelasorsa/Documents/Projects/Active/The Wheel/WheelGovernance/
+  research: /Users/montelasorsa/Documents/Projects/Active/The Wheel/Research/
+  output: /Users/montelasorsa/Documents/Projects/Active/The Wheel/WheelOps/
+
+universe:
+  file: config/universe.csv
+  ticker_column: ticker
+
+data_sources:
+  yfinance:
+    # Global pacing applies even if a future caller uses multiple workers.
+    min_request_interval_seconds: 0.15
+    max_attempts: 3
+    initial_backoff_seconds: 2.0
+    backoff_multiplier: 2.0
+
+# Composite weights total 1.00 and apply only after hard gates pass.
+weights:
+  stability: 0.30
+  iv_proxy_quality: 0.25
+  chart_position: 0.20
+  dividend: 0.15
+  analyst_strength: 0.10
+
+thresholds:
+  profitability:
+    # F1 / ST-SEL-01
+    min_ttm_net_income: 0
+    min_operating_cash_flow: 0
+
+  analyst:
+    # F2 / ST-SEL-02; 1=strong buy, 5=sell.
+    max_mean_rating: 2.5
+
+  price:
+    # F3-F4 / ST-SEL-03, ST-SEL-04, ST-SEL-13
+    min_usd: 10.0
+    max_usd: 50.0
+    pilot_bias_max_usd: 30.0
+
+  stability:
+    # F5 / ST-SEL-05
+    history_days: 365
+    max_single_day_move: 0.15
+    max_realized_vol_universe_percentile: 0.75
+
+  iv_proxy:
+    # F7 / ST-SEL-10, ST-SEL-11. This is realized volatility, not IV.
+    lookback_trading_days: 30
+    annualization_trading_days: 252
+    quality_zone_min: 0.20
+    quality_zone_max: 0.40
+    high_vol_penalty_above: 0.50
+
+  chart_position:
+    # F8 / ST-SEL-12
+    history_days: 730
+    min_below_two_year_high: 0.05
+
+  earnings:
+    # F10 / ST-ENT-05; flag only, never disqualify.
+    flag_within_days: 45

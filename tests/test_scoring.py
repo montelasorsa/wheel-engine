@@ -7,13 +7,13 @@ from dataclasses import replace
 
 import pandas as pd
 
-from wheel_screener.data import TickerSnapshot
-from wheel_screener.scoring import (
+from wheel.snapshot import TickerSnapshot
+from wheel.scoring import (
     CompositeWeights,
     ScoringThresholds,
     score_eligible_snapshot,
 )
-from wheel_screener.scoring.score_filters import (
+from wheel.scoring import (
     IV_PROXY_APPROXIMATION,
     IneligibleForScoringError,
     score_chart_position,
@@ -21,12 +21,12 @@ from wheel_screener.scoring.score_filters import (
     score_iv_proxy,
     score_stability,
 )
-from wheel_screener.screening import (
+from wheel.gates import (
     GateFailureKind,
     HardGateThresholds,
     evaluate_hard_gates,
-    partition_hard_gates,
 )
+from wheel.partition import partition_hard_gates
 
 
 HARD_GATE_THRESHOLDS = HardGateThresholds(

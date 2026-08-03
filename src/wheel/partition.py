@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from wheel_screener.data import TickerSnapshot
+from .snapshot import TickerSnapshot
 
-from .hard_gates import (
+from .gates import (
     GateFailureKind,
     GateResult,
     HardGateThresholds,

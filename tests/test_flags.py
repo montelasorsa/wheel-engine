@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import unittest
 
-from wheel_screener.scoring import compute_earnings_proximity_flag
+from wheel.flags import compute_earnings_proximity_flag
 
 
 FIXTURE = (

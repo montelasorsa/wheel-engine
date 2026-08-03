@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "wheel-data": {
+      "command": "python",
+      "args": ["-m", "wheel_mcp.server"],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/src"
+      }
+    }
+  }
+}

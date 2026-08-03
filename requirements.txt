@@ -1,8 +1,14 @@
+# Core + MCP data boundary.
 yfinance>=0.2,<1
 pandas>=2.0,<3
 numpy>=1.24,<3
-Jinja2>=3.1,<4
 PyYAML>=6.0,<7
+lxml>=5,<7
+
+# Quarantined in legacy/ -- drop these once legacy/ is deleted.
+#   Jinja2         : legacy/html_render.py (HTML report)
+#   python-dotenv  : legacy/fmp_adapter.py (FMP key loading)
+#   requests       : legacy/fmp_adapter.py (FMP HTTP calls)
+Jinja2>=3.1,<4
 python-dotenv>=1.0,<2
 requests>=2.31,<3
-lxml>=5,<7
