@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wheel Screener — {{ summary.run_timestamp_text }}</title>
+<style>
+  /* Everything inline: the report must render opened straight off disk,
+     with no server, no network, and no JavaScript. */
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #16181d;
+    --muted: #666e7a;
+    --line: #dfe3e8;
+    --accent: #2f5d8a;
+    --bar: #7fa8cd;
+    --warn-bg: #fdece8; --warn-ink: #9c2c10;
+    --note-bg: #fdf5e2; --note-ink: #8a6100;
+    --calm-bg: #eef2f6; --calm-ink: #44515f;
+    --good-bg: #e9f4ec; --good-ink: #1f6b39;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --panel: #1c1f25;
+      --ink: #e7e9ec;
+      --muted: #9aa3ad;
+      --line: #2c313a;
+      --accent: #8fb6dd;
+      --bar: #3f6389;
+      --warn-bg: #3a1e18; --warn-ink: #ffb4a0;
+      --note-bg: #342b12; --note-ink: #f2ce85;
+      --calm-bg: #23272e; --calm-ink: #b7c1cc;
+      --good-bg: #17301f; --good-ink: #8fd6a6;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 19px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .changelog { border-left: 4px solid var(--accent); }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .stats li { font-size: 13px; color: var(--muted); }
+  .stats b { color: var(--ink); font-size: 15px; font-weight: 600; }
+  .note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+
+  /* Wide tables scroll inside their own box so the page never scrolls sideways. */
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ticker { font-weight: 600; }
+  .reason { white-space: normal; min-width: 260px; color: var(--muted); }
+
+  /* Stacked identity cell: ticker / name / sector / market cap. */
+  .ident { min-width: 200px; white-space: normal; }
+  .ident .sym { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+  .ident .name { display: block; font-size: 12px; }
+  .ident .sub { display: block; font-size: 11px; color: var(--muted); }
+  .metric { color: var(--muted); font-size: 11px; }
+
+  .bar-cell { min-width: 150px; }
+  .bar { position: relative; background: var(--calm-bg); border-radius: 3px; height: 18px; width: 100%; }
+  .bar span { position: absolute; inset: 0 auto 0 0; background: var(--bar); border-radius: 3px; }
+  .bar b { position: relative; display: block; text-align: right; padding-right: 6px; font-size: 11px; line-height: 18px; font-variant-numeric: tabular-nums; }
+
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; white-space: nowrap; }
+  .f10-warning { background: var(--warn-bg); color: var(--warn-ink); font-weight: 600; }
+  .f10-notable { background: var(--note-bg); color: var(--note-ink); }
+  .f10-neutral { background: var(--calm-bg); color: var(--calm-ink); }
+  .f10-far     { color: var(--muted); }
+  .f10-unknown { color: var(--muted); font-style: italic; }
+  .src { background: var(--good-bg); color: var(--good-ink); }
+
+  .empty { color: var(--muted); font-size: 13px; margin: 0; }
+  .first-run { background: var(--calm-bg); color: var(--calm-ink); padding: 10px 12px; border-radius: 6px; margin: 0; font-size: 14px; }
+  .tickers { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--ink); margin: 0; word-spacing: 4px; line-height: 1.7; }
+  sup { color: var(--accent); font-size: 10px; }
+  footer { color: var(--muted); font-size: 12px; padding: 0 4px 24px; max-width: 1100px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  {# ---- A. Header ---- #}
+  <section id="header">
+    <h1>Wheel Screener — ranked candidates</h1>
+    <ul class="stats">
+      <li>Run <b>{{ summary.run_timestamp_text }}</b></li>
+      <li>Universe <b>{{ summary.universe_size }}</b></li>
+      <li>Scored <b>{{ summary.scored }}</b></li>
+      <li>Fitness fail <b>{{ summary.fitness_fail }}</b></li>
+      <li>Missing data <b>{{ summary.missing_data }}</b></li>
+      <li>Fetch error <b>{{ summary.fetch_error }}</b></li>
+      <li>F5 volatility benchmark <b>{{ summary.volatility_benchmark_text }}</b></li>
+    </ul>
+    <p class="note"><sup>&dagger;</sup> {{ summary.iv_approximation_note }}</p>
+  </section>
+
+  {# ---- B. Change log (ST-SEL-07 cycling signal) ---- #}
+  <section id="changelog" class="changelog">
+    <h2>Change vs last run</h2>
+    {% if diff.first_run %}
+      <p class="first-run">First run — no comparison available yet. The next run will diff against this one.</p>
+    {% else %}
+      <h3>Newly qualified ({{ diff.newly_qualified | length }})</h3>
+      {% if diff.newly_qualified %}
+        <div class="scroll">
+        <table>
+          <thead><tr><th>Ticker</th><th>Prior verdict</th></tr></thead>
+          <tbody>
+          {% for item in diff.newly_qualified %}
+            <tr>
+              <td class="ticker">{{ item.ticker }}{% if item.company_name %} <span class="metric">{{ item.company_name }}</span>{% endif %}</td>
+              <td>{{ item.prior_verdict if item.prior_verdict else "not in prior run" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+        <p class="empty">None.</p>
+      {% endif %}
+
+      <h3>Newly dropped ({{ diff.newly_dropped | length }})</h3>
+      {% if diff.newly_dropped %}
+        <div class="scroll">
+        <table>
+          <thead><tr><th>Ticker</th><th>Now</th><th>Why it dropped</th></tr></thead>
+          <tbody>
+          {% for item in diff.newly_dropped %}
+            <tr>
+              <td class="ticker">{{ item.ticker }}{% if item.company_name %} <span class="metric">{{ item.company_name }}</span>{% endif %}</td>
+              <td>{{ item.current_verdict }}</td>
+              <td class="reason">{{ item.reason if item.reason else "—" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+        <p class="empty">None.</p>
+      {% endif %}
+
+      <h3>Unchanged</h3>
+      <p class="empty">{{ diff.unchanged | length }} names still qualify.</p>
+    {% endif %}
+  </section>
+
+  {# ---- C. Ranked survivors ---- #}
+  <section id="ranked">
+    <h2>Ranked survivors ({{ ranked | length }})</h2>
+    {% if ranked %}
+      <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Ticker</th>
+            <th class="bar-cell">Composite<sup>&dagger;</sup></th>
+            <th class="num">F5</th>
+            <th class="num">F6</th>
+            <th class="num">F7<sup>&dagger;</sup></th>
+            <th class="num">F8</th>
+            <th class="num">F2</th>
+            <th>F10 next earnings</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in ranked %}
+          <tr>
+            <td class="num">{{ row.rank }}</td>
+            <td class="ident">
+              <span class="sym">{{ row.ticker }}</span>
+              {% if row.company_name %}<span class="name">{{ row.company_name }}</span>{% endif %}
+              {% if row.sector_line %}<span class="sub">{{ row.sector_line }}</span>{% endif %}
+              {% if row.market_cap_text %}<span class="sub">{{ row.market_cap_text }}</span>{% endif %}
+            </td>
+            <td class="bar-cell">
+              <div class="bar"><span style="width: {{ row.composite_pct }}%"></span><b>{{ row.composite_text }}</b></div>
+            </td>
+            <td class="num">{{ row.f5 }}</td>
+            <td class="num">{{ row.f6 }}</td>
+            <td class="num">{{ row.f7 }}</td>
+            <td class="num">{{ row.f8 }}</td>
+            <td class="num">{{ row.f2 }}</td>
+            <td><span class="chip {{ row.f10.css_class }}">{{ row.f10.label }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="empty">No names cleared every hard gate this run.</p>
+    {% endif %}
+  </section>
+
+  {# ---- D. Missing data ---- #}
+  <section id="missing-data">
+    <h2>Missing data ({{ missing_data | length }})</h2>
+    {% if missing_data %}
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Ticker</th><th>Could not evaluate</th><th>Field source</th></tr></thead>
+        <tbody>
+        {% for row in missing_data %}
+          <tr>
+            <td class="ident">
+              <span class="sym">{{ row.ticker }}</span>
+              {% if row.company_name %}<span class="name">{{ row.company_name }}</span>{% endif %}
+              {% if row.sector_line %}<span class="sub">{{ row.sector_line }}</span>{% endif %}
+              {% if row.market_cap_text %}<span class="sub">{{ row.market_cap_text }}</span>{% endif %}
+            </td>
+            <td class="reason">
+              {% for block in row.blocking %}
+                {{ block.gate_id }}: {{ block.reason }}
+                {% if block.observed %}<br><span class="metric">{{ block.observed }}</span>{% endif %}
+                {% if not loop.last %}<br>{% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              {% for item in row.sources %}
+                <span class="chip src">{{ item.field }} via {{ item.source }}</span>
+              {% else %}
+                <span class="f10-unknown">—</span>
+              {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    {% else %}
+      <p class="empty">None — every fetched name had the fields its gates needed.</p>
+    {% endif %}
+  </section>
+
+  {# ---- E. Fetch errors ---- #}
+  <section id="fetch-errors">
+    <h2>Fetch errors ({{ fetch_errors | length }})</h2>
+    {% if fetch_errors %}
+      <p class="tickers">{{ fetch_errors | join(" ") }}</p>
+      <p class="note">These never returned data, so no gate was evaluated. Surfaced rather than dropped.</p>
+    {% else %}
+      <p class="empty">None — every ticker in the universe returned data.</p>
+    {% endif %}
+  </section>
+
+  {# ---- F. Fitness-fail summary ---- #}
+  <section id="fitness-fail">
+    <h2>Fitness fail</h2>
+    <p class="empty">{{ summary.fitness_fail }} names failed fitness gates — see CSV for details.</p>
+  </section>
+
+</div>
+<footer>
+  <p><sup>&dagger;</sup> {{ summary.iv_approximation_note }} Composite scores therefore inherit that approximation.</p>
+  <p>Screening output only — show and rank, never decide. Human review required before any position.</p>
+</footer>
+</body>
+</html>

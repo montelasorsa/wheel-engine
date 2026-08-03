@@ -1,0 +1,19 @@
+{
+  "near": {
+    "Earnings Date": [
+      "2026-08-10"
+    ]
+  },
+  "distant": {
+    "Earnings Date": [
+      "2026-09-15"
+    ]
+  },
+  "boundary": {
+    "Earnings Date": [
+      "2026-09-08"
+    ]
+  },
+  "missing": {}
+}
+

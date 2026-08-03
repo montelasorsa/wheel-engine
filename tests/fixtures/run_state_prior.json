@@ -1,0 +1,23 @@
+{
+  "AAA": {
+    "verdict": "scored",
+    "reason": null,
+    "composite": 90.0
+  },
+  "BBB": {
+    "verdict": "fitness_fail",
+    "reason": "F3: outside price band",
+    "composite": null
+  },
+  "CCC": {
+    "verdict": "scored",
+    "reason": null,
+    "composite": 80.0
+  },
+  "DDD": {
+    "verdict": "scored",
+    "reason": null,
+    "composite": 70.0
+  }
+}
+

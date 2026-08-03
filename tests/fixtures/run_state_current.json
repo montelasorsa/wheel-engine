@@ -1,0 +1,23 @@
+{
+  "AAA": {
+    "verdict": "scored",
+    "reason": null,
+    "composite": 91.0
+  },
+  "BBB": {
+    "verdict": "scored",
+    "reason": null,
+    "composite": 75.0
+  },
+  "CCC": {
+    "verdict": "fetch_error",
+    "reason": "fetch error",
+    "composite": null
+  },
+  "DDD": {
+    "verdict": "missing_data",
+    "reason": "F1: missing operating_cash_flow_ttm",
+    "composite": null
+  }
+}
+
