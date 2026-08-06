@@ -98,6 +98,8 @@ def normalize_fundamentals(
         "business_description": truncate_description(
             info.get("longBusinessSummary")
         ),
+        # ST-SEL-08: the scorers must be able to tell an ETF from an equity.
+        "quote_type": info.get("quoteType"),
         "currency": info.get("currency"),
         "exchange": info.get("exchange"),
         "sector": info.get("sector"),

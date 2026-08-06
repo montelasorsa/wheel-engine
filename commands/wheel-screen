@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# /wheel-screen — §5.4: fetch → snapshot → score → weeks/YYYY-MM-DD.md
+# Snapshot-then-score (AGENTS.md §4.1): acquisition and scoring are two
+# phases; --score-only skips the fetch and scores existing snapshots.
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$HOME/.venvs/wheel-screener/bin/python"
+cd "$REPO"
+if [[ "${1:-}" != "--score-only" ]]; then
+  PYTHONPATH=src "$PY" -m wheel_mcp.acquire
+else
+  shift || true
+fi
+PYTHONPATH=src exec "$PY" -m wheel.screen "$@"
