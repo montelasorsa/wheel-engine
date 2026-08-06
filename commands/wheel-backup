@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# /wheel-backup — one-way copy of WheelOps to the iCloud backup destination.
+#
+# WheelOps (~/Developer, outside iCloud per AGENTS.md §3) is the SOURCE OF
+# TRUTH. This copies out; nothing ever copies back, and deletions are not
+# propagated (no --delete) — an append-only ledger wants a backup that only
+# grows. Usage:
+#
+#   wheel-backup                     back up all of WheelOps
+#   wheel-backup decisions           back up one subfolder only
+#   wheel-backup --source S --dest D override config (used by tests)
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$HOME/.venvs/wheel-screener/bin/python"
+
+SOURCE=""
+DEST=""
+SUBDIR=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --source) SOURCE="$2"; shift 2 ;;
+    --dest)   DEST="$2";   shift 2 ;;
+    *)        SUBDIR="$1"; shift ;;
+  esac
+done
+
+if [[ -z "$SOURCE" || -z "$DEST" ]]; then
+  eval "$(cd "$REPO" && PYTHONPATH=src "$PY" - <<'PYEOF'
+import shlex
+from wheel.config_io import load_config
+paths = load_config("config.yaml")["paths"]
+print(f'CFG_SOURCE={shlex.quote(paths["wheelops"])}')
+print(f'CFG_DEST={shlex.quote(paths["backup"])}')
+PYEOF
+)"
+  SOURCE="${SOURCE:-$CFG_SOURCE}"
+  DEST="${DEST:-$CFG_DEST}"
+fi
+
+if [[ -n "$SUBDIR" ]]; then
+  SOURCE="${SOURCE%/}/$SUBDIR"
+  DEST="${DEST%/}/$SUBDIR"
+fi
+
+if [[ ! -d "$SOURCE" ]]; then
+  echo "wheel-backup: source does not exist: $SOURCE" >&2
+  exit 1
+fi
+
+mkdir -p "$DEST"
+rsync -a "${SOURCE%/}/" "${DEST%/}/"
+echo "BACKUP ${SOURCE%/}/ -> ${DEST%/}/"

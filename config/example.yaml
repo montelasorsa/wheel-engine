@@ -12,6 +12,9 @@ paths:
   output: /Users/montelasorsa/Documents/Projects/Active/The Wheel/WheelOps/
   # AGENTS.md §3: operational data lives in the repo SIBLING, never the repo.
   wheelops: /Users/montelasorsa/Developer/WheelOps/
+  # One-way backup destination (commands/wheel-backup). WheelOps is the
+  # source of truth; this only ever receives copies.
+  backup: /Users/montelasorsa/Library/Mobile Documents/com~apple~CloudDocs/AdVenture Labs/WheelOps-backup/
 
 universe:
   file: config/universe.csv

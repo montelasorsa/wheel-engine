@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # /wheel-decide — §5.5: log a judgment call with its prediction (append-only).
+# A successful append triggers a backup of the decisions folder; a failed
+# backup warns but never un-logs the decision.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
-PYTHONPATH=src exec "$HOME/.venvs/wheel-screener/bin/python" -m wheel.decide "$@"
+rc=0
+PYTHONPATH=src "$HOME/.venvs/wheel-screener/bin/python" -m wheel.decide "$@" || rc=$?
+if [[ $rc -eq 0 ]]; then
+  "$REPO/commands/wheel-backup" decisions \
+    || echo "WARN: backup failed — the decision IS logged locally" >&2
+fi
+exit $rc
