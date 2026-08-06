@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "snapshot_date": "2026-08-15",
+  "ticker": "SPY",
+  "source": {
+    "provider": "yfinance",
+    "fetched_at": "2026-08-15T10:44:12-06:00",
+    "partial": true
+  },
+  "identity": {
+    "company_name": "SPDR S&P 500 ETF Trust",
+    "quote_type": "ETF",
+    "sector": null,
+    "industry": null,
+    "market_cap": null,
+    "currency": "USD",
+    "exchange": "PCX"
+  },
+  "price": {
+    "current": 618.42,
+    "history_start": "2024-08-15",
+    "history_end": "2026-08-15",
+    "trading_days": 503
+  },
+  "fundamentals": {
+    "net_income_ttm": null,
+    "operating_cash_flow_ttm": null,
+    "revenue_ttm": null
+  },
+  "analyst": {
+    "recommendation_mean": null,
+    "recommendation_key": null,
+    "analyst_opinions": null
+  },
+  "dividend": {
+    "pays_dividend": true,
+    "yield_percent": 1.21,
+    "last_ex_date": "2026-06-20"
+  },
+  "stability": {
+    "max_single_day_move_1y": 0.0294,
+    "realized_vol_1y": 0.1382
+  },
+  "volatility": {
+    "implied_volatility": null,
+    "realized_vol_30d": 0.1104,
+    "is_proxy": true,
+    "proxy_note": "APPROXIMATION: 30-day annualized realized volatility stands in for implied volatility; no live IV feed exists at Layer 0."
+  },
+  "chart_position": {
+    "two_year_high": 631.08,
+    "pct_below_two_year_high": 0.0201
+  },
+  "options": {
+    "has_options": true,
+    "expirations_listed": 38,
+    "chain_available": false,
+    "bid_ask_spread_at_target": null,
+    "open_interest_at_target": null,
+    "premium_pct_of_collateral": null
+  },
+  "earnings": {
+    "next_earnings_date": null,
+    "days_to_earnings": null,
+    "earnings_week": null
+  },
+  "operator_gates": {
+    "thesis_note_exists": false,
+    "thesis_note_path": null,
+    "willing_to_own_12mo": null
+  }
+}
