@@ -4,43 +4,34 @@
 > Read this fully before writing or changing code. It encodes decisions made across weeks of design
 > work; deviating from it silently is the primary failure mode to avoid.
 
-> **AMENDED — architecture reorg.** The project is now a Claude Code plugin + MCP data source +
-> deterministic Python core, with **no UI layer**. Six clauses below are superseded; each is marked
-> `[AMENDED]` inline. The reasoning for all six is in `docs/ARCHITECTURE.md`, which wins where it
-> conflicts with this file. Everything unmarked still holds — especially §3 (strategy) and §4
-> (the show/recommend/never-decide boundary), which the reorg strengthens rather than relaxes.
-
 ---
 
 ## Repo location, folder layout, and environment (READ BEFORE ANYTHING)
 
-**[AMENDED] The repo has moved out of the iCloud tree to `~/Developer/wheel-engine`.** The
-governance, research, and output folders stayed in iCloud, so the sibling-relative paths this
-section described now resolve next to the repo instead of next to the docs. `config.yaml` uses
-**absolute** paths for that reason; the "use relative defaults for portability" guidance below is
-superseded. `config/example.yaml` is the tracked template; `config.yaml` is the live operator copy
-and is authoritative. The iCloud `Development/` copy is reference only — do not keep it in sync.
-
-The non-repo folders still live under `.../Projects/Active/The Wheel/`:
+This repo lives inside an iCloud-synced Documents tree. The project is organized into sibling
+folders under `.../Projects/Active/The Wheel/`:
 
 ```
 The Wheel/
 ├── WheelGovernance/   ← BINDING strategy docs (Source Brief, Constitution, Engine Proposal)
 ├── Research/          ← source synthesis / brainstorming (Distilled Transcripts)
-└── WheelOps/          ← runtime OUTPUT folder (screener runs, logs, CSV history)
-
-~/Developer/wheel-engine/   ← THIS REPO (outside iCloud)
+├── Development/       ← THIS REPO lives here (code, AGENTS.md, screener spec)
+└── WheelOps/          ← runtime OUTPUT folder (screener runs, logs, CSV/HTML history)
 ```
 
-**Path references from code:** all three are absolute values in `config.yaml` under `paths:`.
-Run outputs still go to `WheelOps/` — never into the repo itself.
+**Path references from code:**
+- Governance docs (binding rules): `../WheelGovernance/`
+- Research (source material): `../Research/`
+- Run outputs the code writes: `../WheelOps/` (never write outputs into the repo itself)
 
-### Python virtualenv — mandatory rule
+Use a config value for these base paths (see §5) rather than hard-coding absolute paths, so the
+repo stays portable. Relative-to-repo-root defaults should match the tree above.
 
-**[AMENDED]** The repo itself is no longer in iCloud, so the sync-corruption risk that motivated
-this rule is gone for the repo — but the venv location is unchanged and still external:
-`~/.venvs/wheel-screener`. Never create a venv inside the repo, and never anywhere under the
-iCloud-synced Documents tree (where the governance, research, and output folders still live).
+### iCloud + Python virtualenv — mandatory rule
+
+Because this repo sits in iCloud Drive, **never create the Python virtual environment inside the
+repo or anywhere under the iCloud-synced Documents tree.** venv/dependency folders churn thousands
+of small files that iCloud will fight to sync, causing corruption and "file in use" errors.
 
 - **Create and use the venv at a non-synced location: `~/.venvs/wheel-screener`.**
   - Create: `python3 -m venv ~/.venvs/wheel-screener`
@@ -94,10 +85,8 @@ BUILD FIRST            build next               build last
 
 - **Component A — Screener (CURRENT FOCUS).** Runs on free fundamental + price data (yfinance).
   Answers: which stocks currently qualify as Wheel candidates, and which held names have stopped
-  qualifying? Full spec: `adventure-labs-screener-build-spec-v1.md` in this repo.
-  **[AMENDED]** The plugin surface now spans A and C: `/wheel-engine:wheel-decide` and the
-  decision-log SOP are Component C surface, scaffolded in `skills/`. The build *sequence* still
-  holds — C's logic is not built — but "only work on A" no longer describes the repo.
+  qualifying? Full spec: `screener-build-spec.md` in this repo. **This is the only component to work on
+  unless told otherwise.**
 - **Component C — Decision Log (NEXT, not yet).** Sits on paper positions. Surfaces
   scenarios/recommendations with rule IDs and reasoning for the operator to judge. This is where
   the "judgment layer" lives.
@@ -174,11 +163,9 @@ Full spec in `screener-build-spec.md` (this repo); that spec is the source of tr
 - **Deterministic + timestamped.** Same input → same output. **Write all run outputs to `../WheelOps/` (never into the repo).** Save each run timestamped so
   week-over-week changes ("X newly qualified / Y dropped out and why") are computable. That diff is
   the whole point of the screener (operationalizes `ST-SEL-07`).
-- **[AMENDED] Local-first, CSV only.** The static HTML report and the LAN serve route were built,
-  tested, and passing (spec Step 7) and are now **superseded** — quarantined in `legacy/`. The CSV
-  survives as the machine-readable interchange to Components B and C, now **33 columns**
-  (`fmp_rescued_fields` dropped with the FMP path). No hosting, no auth, no secrets. The data and
-  scoring layers remain pure functions.
+- **Local-first.** Produces static HTML + CSV, plus a minimal local serve route (phone-viewable on
+  LAN). No hosting, no auth, no secrets. Write the data + scoring layers as pure functions so a
+  future hosted version reuses them unchanged.
 
 **Validation gate (spec Step 8):** before the screener is trusted, it must agree with the
 operator's judgment on ~5 well-known names. If it disqualifies an obviously-good Wheel candidate
@@ -191,16 +178,8 @@ on.
 
 - Python 3.11+
 - yfinance (data), pandas + numpy (screening, vol math)
-- **[AMENDED] FMP is cut, not dormant.** `fmp_adapter.py`, `rescue.py`, the `RESCUE_ENABLED`
-  switch, and their 10 tests are quarantined in `legacy/`. Market data comes from one source
-  (yfinance) through the MCP boundary. Do not resurrect the rescue path; if a gap-filler is needed
-  again it gets designed against the MCP interface.
-- **[AMENDED] MCP** — the data boundary (`src/wheel_mcp/`) is the only code that imports a
-  provider. Added to the approved stack by this reorg.
-- lxml — kept for yfinance's HTML-parsing endpoints. The Step 8 audit script that needed
-  `get_earnings_dates()` is now in `legacy/`.
-- **[AMENDED] Jinja2, Flask/`http.server`, python-dotenv, requests** — no longer used by the core.
-  They remain in `requirements.txt` only for `legacy/`; drop them when `legacy/` is deleted.
+- Jinja2 → static HTML report; CSV output
+- Minimal Flask route OR `python -m http.server` for local viewing
 - YAML config (universe, weights, thresholds, and base paths for governance/research/output folders)
 - Local timestamped CSV/parquet for run history
 
@@ -241,8 +220,7 @@ pick one.
 
 ## 9. Quick "don't do this" list
 
-- **[AMENDED]** Don't build Component B. C's *surface* is scaffolded in `skills/`; its logic is
-  still not built — do not implement it without an explicit task.
+- ❌ Don't build Components B or C while working on A.
 - ❌ Don't add options-data providers or broker APIs to Component A.
 - ❌ Don't reward high IV / high premium in the screener. Penalize it.
 - ❌ Don't write anything that auto-selects, auto-trades, or auto-rolls.
