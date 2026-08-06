@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# /wheel-review — §5.6: reconcile outcomes to predictions; write the three
+# Article XIII inputs to WheelOps/weeks/review-YYYY-MM-DD.md.
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO"
+PYTHONPATH=src exec "$HOME/.venvs/wheel-screener/bin/python" -m wheel.review "$@"
