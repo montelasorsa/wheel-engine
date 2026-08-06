@@ -65,8 +65,8 @@
     "earnings_week": null
   },
   "operator_gates": {
-    "thesis_note_exists": false,
-    "thesis_note_path": null,
+    "thesis_note_exists": true,
+    "thesis_note_path": "notes/SPY.md",
     "willing_to_own_12mo": null
   }
 }
