@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "snapshot_date": "2026-08-06",
+  "ticker": "MARA",
+  "source": {
+    "provider": "yfinance",
+    "fetched_at": "2026-08-06T18:37:58-05:00",
+    "partial": false
+  },
+  "identity": {
+    "company_name": "MARA Holdings, Inc.",
+    "quote_type": "EQUITY",
+    "sector": "Financial Services",
+    "industry": "Capital Markets",
+    "market_cap": 4060530688.0,
+    "currency": "USD",
+    "exchange": "NCM"
+  },
+  "price": {
+    "current": 10.65,
+    "history_start": "2024-08-07",
+    "history_end": "2026-08-06",
+    "trading_days": 501
+  },
+  "fundamentals": {
+    "net_income_ttm": -2037900032.0,
+    "operating_cash_flow_ttm": -834726016.0,
+    "revenue_ttm": 867822976.0
+  },
+  "analyst": {
+    "recommendation_mean": null,
+    "recommendation_key": "none",
+    "analyst_opinions": 11
+  },
+  "dividend": {
+    "pays_dividend": false,
+    "yield_percent": null,
+    "last_ex_date": null
+  },
+  "stability": {
+    "max_single_day_move_1y": 0.2243684617778885,
+    "realized_vol_1y": 0.8269020274542385
+  },
+  "volatility": {
+    "implied_volatility": null,
+    "realized_vol_30d": 0.9638835855097236,
+    "is_proxy": true,
+    "proxy_note": "APPROXIMATION: 30-day annualized realized volatility stands in for implied volatility; no live IV feed exists at Layer 0."
+  },
+  "chart_position": {
+    "two_year_high": 27.420000076293945,
+    "pct_below_two_year_high": 0.6115973752601302
+  },
+  "options": {
+    "has_options": true,
+    "expirations_listed": 16,
+    "chain_available": false,
+    "bid_ask_spread_at_target": null,
+    "open_interest_at_target": null,
+    "premium_pct_of_collateral": null
+  },
+  "earnings": {
+    "next_earnings_date": "2026-08-06",
+    "days_to_earnings": 0,
+    "earnings_week": "2026-W32"
+  },
+  "operator_gates": {
+    "thesis_note_exists": false,
+    "thesis_note_path": null,
+    "willing_to_own_12mo": null
+  }
+}

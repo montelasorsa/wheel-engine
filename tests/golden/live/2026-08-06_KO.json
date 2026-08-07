@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "snapshot_date": "2026-08-06",
+  "ticker": "KO",
+  "source": {
+    "provider": "yfinance",
+    "fetched_at": "2026-08-06T18:37:58-05:00",
+    "partial": false
+  },
+  "identity": {
+    "company_name": "Coca-Cola Company (The)",
+    "quote_type": "EQUITY",
+    "sector": "Consumer Defensive",
+    "industry": "Beverages - Non-Alcoholic",
+    "market_cap": 373676376064.0,
+    "currency": "USD",
+    "exchange": "NYQ"
+  },
+  "price": {
+    "current": 86.85,
+    "history_start": "2024-08-07",
+    "history_end": "2026-08-06",
+    "trading_days": 501
+  },
+  "fundamentals": {
+    "net_income_ttm": 14316000256.0,
+    "operating_cash_flow_ttm": 16341999616.0,
+    "revenue_ttm": 50128998400.0
+  },
+  "analyst": {
+    "recommendation_mean": 1.75,
+    "recommendation_key": "buy",
+    "analyst_opinions": 23
+  },
+  "dividend": {
+    "pays_dividend": true,
+    "yield_percent": 2.44,
+    "last_ex_date": "2026-06-15"
+  },
+  "stability": {
+    "max_single_day_move_1y": 0.04995833190779431,
+    "realized_vol_1y": 0.18622575140038142
+  },
+  "volatility": {
+    "implied_volatility": null,
+    "realized_vol_30d": 0.2824058764896345,
+    "is_proxy": true,
+    "proxy_note": "APPROXIMATION: 30-day annualized realized volatility stands in for implied volatility; no live IV feed exists at Layer 0."
+  },
+  "chart_position": {
+    "two_year_high": 89.08000183105469,
+    "pct_below_two_year_high": 0.0250336976337744
+  },
+  "options": {
+    "has_options": true,
+    "expirations_listed": 16,
+    "chain_available": false,
+    "bid_ask_spread_at_target": null,
+    "open_interest_at_target": null,
+    "premium_pct_of_collateral": null
+  },
+  "earnings": {
+    "next_earnings_date": "2026-10-20",
+    "days_to_earnings": 75,
+    "earnings_week": "2026-W43"
+  },
+  "operator_gates": {
+    "thesis_note_exists": false,
+    "thesis_note_path": null,
+    "willing_to_own_12mo": null
+  }
+}

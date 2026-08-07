@@ -1,0 +1,711 @@
+{
+  "F": {
+    "classification": "rejected",
+    "composite": 100.0,
+    "results": [
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "net_income_ttm": -7395999744.0,
+          "operating_cash_flow_ttm": 16947000320.0
+        },
+        "reason": "net income $-7.40B is not positive.",
+        "rule_id": "ST-SEL-01",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "price": 13.79
+        },
+        "reason": "Price $13.79 meets the $10.00 floor.",
+        "rule_id": "ST-SEL-04",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "gate",
+        "metrics": {
+          "implied_volatility": null,
+          "measure_used": "30-day realized volatility",
+          "realized_vol_30d": 0.2789443755587424
+        },
+        "reason": "30-day realized volatility 27.89% is at or below the 50% warning line (measured on a proxy).",
+        "rule_id": "ST-SEL-10",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "thesis_note_exists": false,
+          "thesis_note_path": null
+        },
+        "reason": "No thesis note exists; the name is not tradeable until one does.",
+        "rule_id": "AL-SEL-04",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "has_company_fundamentals": true,
+          "quote_type": "EQUITY"
+        },
+        "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
+        "rule_id": "ST-SEL-08",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "analyst_opinions": 20.0,
+          "recommendation_mean": 2.5
+        },
+        "reason": "Mean analyst rating 2.50 is at or below the 2.50 maximum (1=strong buy, 5=sell).",
+        "rule_id": "ST-SEL-02",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "price": 13.79
+        },
+        "reason": "Price $13.79 is within the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
+        "rule_id": "ST-SEL-03",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "score",
+        "metrics": {
+          "max_single_day_move_1y": 0.1317764765527354,
+          "realized_vol_1y": 0.37463764595246907
+        },
+        "reason": "Largest single-day move 13.18% is within the 15.00% limit; annualized realized volatility 37.46%.",
+        "rule_id": "ST-SEL-05",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "pays_dividend": true,
+          "yield_percent": 4.25
+        },
+        "reason": "Pays a dividend (yield 4.25%); preferred, not required.",
+        "rule_id": "ST-SEL-06",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "pct_below_two_year_high": 0.20928901503929045,
+          "two_year_high": 17.440000534057617
+        },
+        "reason": "Price is 20.93% below the two-year high, outside the 10% near-high band.",
+        "rule_id": "ST-SEL-12",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "days_to_earnings": 77.0,
+          "next_earnings_date": "2026-10-22"
+        },
+        "reason": "Next earnings 2026-10-22 is 77 days out, beyond the 45-day window.",
+        "rule_id": "ST-ENT-05",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "market_cap": 54988947456.0
+        },
+        "reason": "Market cap $54.99B meets the $2.00B mid-cap floor.",
+        "rule_id": "AL-SEL-06",
+        "verdict": "pass"
+      }
+    ],
+    "snapshot": "2026-08-06_F.json"
+  },
+  "KO": {
+    "classification": "thesis_required",
+    "composite": 90.0,
+    "results": [
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "net_income_ttm": 14316000256.0,
+          "operating_cash_flow_ttm": 16341999616.0
+        },
+        "reason": "TTM net income $14.32B and operating cash flow $16.34B are both positive.",
+        "rule_id": "ST-SEL-01",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "price": 86.85
+        },
+        "reason": "Price $86.85 meets the $10.00 floor.",
+        "rule_id": "ST-SEL-04",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "gate",
+        "metrics": {
+          "implied_volatility": null,
+          "measure_used": "30-day realized volatility",
+          "realized_vol_30d": 0.2824058764896345
+        },
+        "reason": "30-day realized volatility 28.24% is at or below the 50% warning line (measured on a proxy).",
+        "rule_id": "ST-SEL-10",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "thesis_note_exists": false,
+          "thesis_note_path": null
+        },
+        "reason": "No thesis note exists; the name is not tradeable until one does.",
+        "rule_id": "AL-SEL-04",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "has_company_fundamentals": true,
+          "quote_type": "EQUITY"
+        },
+        "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
+        "rule_id": "ST-SEL-08",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "analyst_opinions": 23.0,
+          "recommendation_mean": 1.75
+        },
+        "reason": "Mean analyst rating 1.75 is at or below the 2.50 maximum (1=strong buy, 5=sell).",
+        "rule_id": "ST-SEL-02",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "price": 86.85
+        },
+        "reason": "Price $86.85 is outside the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
+        "rule_id": "ST-SEL-03",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": true,
+        "kind": "score",
+        "metrics": {
+          "max_single_day_move_1y": 0.04995833190779431,
+          "realized_vol_1y": 0.18622575140038142
+        },
+        "reason": "Largest single-day move 5.00% is within the 15.00% limit; annualized realized volatility 18.62%.",
+        "rule_id": "ST-SEL-05",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "pays_dividend": true,
+          "yield_percent": 2.44
+        },
+        "reason": "Pays a dividend (yield 2.44%); preferred, not required.",
+        "rule_id": "ST-SEL-06",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "pct_below_two_year_high": 0.0250336976337744,
+          "two_year_high": 89.08000183105469
+        },
+        "reason": "Price is 2.50% below the two-year high -- inside the 10% near-high band; a worse entry, not a rejection.",
+        "rule_id": "ST-SEL-12",
+        "verdict": "flag"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "days_to_earnings": 75.0,
+          "next_earnings_date": "2026-10-20"
+        },
+        "reason": "Next earnings 2026-10-20 is 75 days out, beyond the 45-day window.",
+        "rule_id": "ST-ENT-05",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "market_cap": 373676376064.0
+        },
+        "reason": "Market cap $373.68B meets the $2.00B mid-cap floor.",
+        "rule_id": "AL-SEL-06",
+        "verdict": "pass"
+      }
+    ],
+    "snapshot": "2026-08-06_KO.json"
+  },
+  "MARA": {
+    "classification": "rejected",
+    "composite": 22.22222222222222,
+    "results": [
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "net_income_ttm": -2037900032.0,
+          "operating_cash_flow_ttm": -834726016.0
+        },
+        "reason": "net income $-2.04B is not positive; operating cash flow $-834.7M is not positive.",
+        "rule_id": "ST-SEL-01",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "price": 10.65
+        },
+        "reason": "Price $10.65 meets the $10.00 floor.",
+        "rule_id": "ST-SEL-04",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "gate",
+        "metrics": {
+          "implied_volatility": null,
+          "measure_used": "30-day realized volatility",
+          "realized_vol_30d": 0.9638835855097236
+        },
+        "reason": "30-day realized volatility 96.39% exceeds the 80% disqualifying ceiling (measured on a proxy).",
+        "rule_id": "ST-SEL-10",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "thesis_note_exists": false,
+          "thesis_note_path": null
+        },
+        "reason": "No thesis note exists; the name is not tradeable until one does.",
+        "rule_id": "AL-SEL-04",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "has_company_fundamentals": true,
+          "quote_type": "EQUITY"
+        },
+        "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
+        "rule_id": "ST-SEL-08",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "analyst_opinions": 11.0,
+          "recommendation_mean": null
+        },
+        "reason": "Cannot evaluate: missing analyst.recommendation_mean.",
+        "rule_id": "ST-SEL-02",
+        "verdict": "cannot_evaluate"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "price": 10.65
+        },
+        "reason": "Price $10.65 is within the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
+        "rule_id": "ST-SEL-03",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "score",
+        "metrics": {
+          "max_single_day_move_1y": 0.2243684617778885,
+          "realized_vol_1y": 0.8269020274542385
+        },
+        "reason": "Largest single-day move 22.44% exceeds the 15.00% limit; annualized realized volatility 82.69%.",
+        "rule_id": "ST-SEL-05",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "pays_dividend": false,
+          "yield_percent": null
+        },
+        "reason": "Does not pay a dividend (yield unavailable); preferred, not required.",
+        "rule_id": "ST-SEL-06",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "pct_below_two_year_high": 0.6115973752601302,
+          "two_year_high": 27.420000076293945
+        },
+        "reason": "Price is 61.16% below the two-year high, outside the 10% near-high band.",
+        "rule_id": "ST-SEL-12",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "days_to_earnings": 0.0,
+          "next_earnings_date": "2026-08-06"
+        },
+        "reason": "Next earnings 2026-08-06 is 0 days out -- inside the 45-day window; do not open across it.",
+        "rule_id": "ST-ENT-05",
+        "verdict": "flag"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "market_cap": 4060530688.0
+        },
+        "reason": "Market cap $4.06B meets the $2.00B mid-cap floor.",
+        "rule_id": "AL-SEL-06",
+        "verdict": "pass"
+      }
+    ],
+    "snapshot": "2026-08-06_MARA.json"
+  },
+  "SPY": {
+    "classification": "thesis_required",
+    "composite": 88.88888888888889,
+    "results": [
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "quote_type": "ETF"
+        },
+        "reason": "Not applicable: ETF has no issuer fundamentals (ST-SEL-08 admits these as valid candidates).",
+        "rule_id": "ST-SEL-01",
+        "verdict": "not_applicable"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "price": 768.56
+        },
+        "reason": "Price $768.56 meets the $10.00 floor.",
+        "rule_id": "ST-SEL-04",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "gate",
+        "metrics": {
+          "implied_volatility": null,
+          "measure_used": "30-day realized volatility",
+          "realized_vol_30d": 0.13387864773574285
+        },
+        "reason": "30-day realized volatility 13.39% is at or below the 50% warning line (measured on a proxy).",
+        "rule_id": "ST-SEL-10",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "thesis_note_exists": false,
+          "thesis_note_path": null
+        },
+        "reason": "No thesis note exists; the name is not tradeable until one does.",
+        "rule_id": "AL-SEL-04",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "has_company_fundamentals": false,
+          "quote_type": "ETF"
+        },
+        "reason": "Classified ETF: no issuer, so ST-SEL-01/02, AL-SEL-06 and ST-ENT-05 do not apply. A valid candidate, not a rejection.",
+        "rule_id": "ST-SEL-08",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "recommendation_mean": null
+        },
+        "reason": "Not applicable: ETF carries no analyst consensus (ST-SEL-08).",
+        "rule_id": "ST-SEL-02",
+        "verdict": "not_applicable"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "price": 768.56
+        },
+        "reason": "Price $768.56 is outside the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
+        "rule_id": "ST-SEL-03",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": true,
+        "kind": "score",
+        "metrics": {
+          "max_single_day_move_1y": 0.029067865784757174,
+          "realized_vol_1y": 0.12875234795794244
+        },
+        "reason": "Largest single-day move 2.91% is within the 15.00% limit; annualized realized volatility 12.88%.",
+        "rule_id": "ST-SEL-05",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "pays_dividend": true,
+          "yield_percent": 1.01
+        },
+        "reason": "Pays a dividend (yield 1.01%); preferred, not required.",
+        "rule_id": "ST-SEL-06",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "pct_below_two_year_high": 0.0035912216930112754,
+          "two_year_high": 771.3300170898438
+        },
+        "reason": "Price is 0.36% below the two-year high -- inside the 10% near-high band; a worse entry, not a rejection.",
+        "rule_id": "ST-SEL-12",
+        "verdict": "flag"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "days_to_earnings": null,
+          "next_earnings_date": null
+        },
+        "reason": "Not applicable: ETF has no earnings event (ST-SEL-08 notes this as an ETF advantage).",
+        "rule_id": "ST-ENT-05",
+        "verdict": "not_applicable"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "market_cap": null
+        },
+        "reason": "Not applicable: ETF has no issuer market cap (ST-SEL-08).",
+        "rule_id": "AL-SEL-06",
+        "verdict": "not_applicable"
+      }
+    ],
+    "snapshot": "2026-08-06_SPY.json"
+  },
+  "T": {
+    "classification": "thesis_required",
+    "composite": 100.0,
+    "results": [
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "net_income_ttm": 21479999488.0,
+          "operating_cash_flow_ttm": 39899000832.0
+        },
+        "reason": "TTM net income $21.48B and operating cash flow $39.90B are both positive.",
+        "rule_id": "ST-SEL-01",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "price": 23.71
+        },
+        "reason": "Price $23.71 meets the $10.00 floor.",
+        "rule_id": "ST-SEL-04",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "gate",
+        "metrics": {
+          "implied_volatility": null,
+          "measure_used": "30-day realized volatility",
+          "realized_vol_30d": 0.3483218269525681
+        },
+        "reason": "30-day realized volatility 34.83% is at or below the 50% warning line (measured on a proxy).",
+        "rule_id": "ST-SEL-10",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "gate",
+        "metrics": {
+          "thesis_note_exists": false,
+          "thesis_note_path": null
+        },
+        "reason": "No thesis note exists; the name is not tradeable until one does.",
+        "rule_id": "AL-SEL-04",
+        "verdict": "fail"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "has_company_fundamentals": true,
+          "quote_type": "EQUITY"
+        },
+        "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
+        "rule_id": "ST-SEL-08",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "analyst_opinions": 23.0,
+          "recommendation_mean": 2.04
+        },
+        "reason": "Mean analyst rating 2.04 is at or below the 2.50 maximum (1=strong buy, 5=sell).",
+        "rule_id": "ST-SEL-02",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "price": 23.71
+        },
+        "reason": "Price $23.71 is within the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
+        "rule_id": "ST-SEL-03",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": true,
+        "kind": "score",
+        "metrics": {
+          "max_single_day_move_1y": 0.051329064031466864,
+          "realized_vol_1y": 0.2503619471359659
+        },
+        "reason": "Largest single-day move 5.13% is within the 15.00% limit; annualized realized volatility 25.04%.",
+        "rule_id": "ST-SEL-05",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "pays_dividend": true,
+          "yield_percent": 4.81
+        },
+        "reason": "Pays a dividend (yield 4.81%); preferred, not required.",
+        "rule_id": "ST-SEL-06",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "pct_below_two_year_high": 0.16567192041858192,
+          "two_year_high": 28.41807746887207
+        },
+        "reason": "Price is 16.57% below the two-year high, outside the 10% near-high band.",
+        "rule_id": "ST-SEL-12",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "flag",
+        "metrics": {
+          "days_to_earnings": 76.0,
+          "next_earnings_date": "2026-10-21"
+        },
+        "reason": "Next earnings 2026-10-21 is 76 days out, beyond the 45-day window.",
+        "rule_id": "ST-ENT-05",
+        "verdict": "pass"
+      },
+      {
+        "is_approximation": false,
+        "kind": "score",
+        "metrics": {
+          "market_cap": 162470068224.0
+        },
+        "reason": "Market cap $162.47B meets the $2.00B mid-cap floor.",
+        "rule_id": "AL-SEL-06",
+        "verdict": "pass"
+      }
+    ],
+    "snapshot": "2026-08-06_T.json"
+  },
+  "_cross_candidate": [
+    {
+      "is_approximation": false,
+      "kind": "flag",
+      "metrics": {
+        "candidates": 5,
+        "concentrated_industries": 0,
+        "industries": 4
+      },
+      "reason": "No industry repeats across 5 candidates (4 distinct industries).",
+      "rule_id": "AL-SIZ-03",
+      "verdict": "pass"
+    },
+    {
+      "is_approximation": false,
+      "kind": "flag",
+      "metrics": {
+        "candidates": 5,
+        "clustered_weeks": 1,
+        "weeks_with_earnings": 2
+      },
+      "reason": "Earnings clustering (display, not a constraint) -- 2026-W43: F, KO, T.",
+      "rule_id": "AL-SIZ-04",
+      "verdict": "flag"
+    }
+  ]
+}
