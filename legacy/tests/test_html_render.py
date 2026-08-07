@@ -10,7 +10,7 @@ import unittest
 
 from legacy.html_render import render_html
 
-from tests.test_csv_output import (
+from legacy.tests.test_csv_output import (
     FIRST_RUN_DIFF,
     SECOND_RUN_DIFF,
     build_fixture,
