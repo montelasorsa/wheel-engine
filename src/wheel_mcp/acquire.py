@@ -33,6 +33,7 @@ from wheel.universe import (
     universe_filters_from_config,
 )
 
+from .fmp import FmpConfigurationError, fill_document, load_fmp_api_key
 from .snapshot_writer import build_snapshot_document, write_snapshot_document
 from .universe_source import load_universe
 from .yahoo import (
@@ -63,6 +64,58 @@ def thesis_note_status(wheelops: Path, symbol: str) -> tuple[bool, str | None]:
 
     relative = f"notes/{symbol}.md"
     return (wheelops / relative).is_file(), relative
+
+
+class FallbackFiller:
+    """Applies the FMP null-fill, degrading rather than failing the run.
+
+    A two-hour acquisition must not die because a key is absent or a fallback
+    request timed out -- but it must not hide it either. The first failure is
+    announced with its reason, subsequent ones are counted, and the run reports
+    the total. The snapshot is written either way, with its null intact, and
+    §4.4's `data_incomplete` flag still reaches the operator through Layer 1.
+    """
+
+    def __init__(self, *, say: Callable[[str], None], load_key=load_fmp_api_key):
+        self.say = say
+        self.filled_fields = 0
+        self.filled_names: list[str] = []
+        self.failures = 0
+        try:
+            self._api_key: str | None = load_key()
+        except FmpConfigurationError as error:
+            self._api_key = None
+            say(f"  FMP DISABLED {error}")
+
+    @property
+    def enabled(self) -> bool:
+        return self._api_key is not None
+
+    def apply(self, document: Mapping[str, Any]) -> Mapping[str, Any]:
+        if self._api_key is None:
+            return document
+        try:
+            filled, fields = fill_document(document, self._api_key)
+        except Exception as error:
+            self.failures += 1
+            if self.failures == 1:
+                self.say(f"  FMP ERROR (first of run) {type(error).__name__}: {error}")
+            return document
+        if fields:
+            self.filled_fields += len(fields)
+            self.filled_names.append(str(document.get("ticker", "?")))
+            self.say(
+                f"  FMP FILLED {document.get('ticker')}: {', '.join(fields)}"
+            )
+        return filled
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "names_filled": len(self.filled_names),
+            "fields_filled": self.filled_fields,
+            "request_failures": self.failures,
+        }
 
 
 def scan_universe(
@@ -119,6 +172,7 @@ def deep_snapshot(
     fetch_snapshot: Callable[..., Any],
     fetch_calendar: Callable[..., Any],
     say: Callable[[str], None],
+    filler: "FallbackFiller | None" = None,
 ) -> dict[str, Any]:
     """Stage 2: full snapshot per survivor, reusing same-week stable ones."""
 
@@ -164,6 +218,10 @@ def deep_snapshot(
                     thesis_note_exists=exists,
                     thesis_note_path=path if exists else None,
                 )
+                # yfinance first, always. The fallback sees only what it left
+                # null, and only the four allowlisted fields.
+                if filler is not None:
+                    document = filler.apply(document)
                 written.append(write_snapshot_document(document, snapshots_dir))
             except Exception as error:
                 errors.append((ticker, f"{type(error).__name__}: {error}"))
@@ -215,6 +273,7 @@ def acquire_universe(
         say(f"    {reason}: {len(names)}")
 
     say(f"STAGE 2 deep snapshot for {len(stage1.survivors)} survivors")
+    filler = FallbackFiller(say=say)
     stage2 = deep_snapshot(
         stage1.survivors,
         wheelops=wheelops,
@@ -224,9 +283,16 @@ def acquire_universe(
         fetch_snapshot=fetch_snapshot,
         fetch_calendar=fetch_calendar,
         say=say,
+        filler=filler,
     )
     for ticker, reason in stage2["errors"]:
         say(f"  FETCH-ERROR {ticker}: {reason}")
+    fallback = filler.summary()
+    say(
+        f"  FALLBACK enabled={fallback['enabled']} "
+        f"names={fallback['names_filled']} fields={fallback['fields_filled']} "
+        f"failures={fallback['request_failures']}"
+    )
 
     return {
         "universe_size": len(tickers),
@@ -236,6 +302,7 @@ def acquire_universe(
         "snapshots_written": len(stage2["written"]),
         "snapshots_reused": len(stage2["reused"]),
         "fetch_errors": stage2["errors"],
+        "fallback": fallback,
         "survivor_tickers": tuple(s.ticker for s in stage1.survivors),
     }
 

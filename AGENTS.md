@@ -135,7 +135,8 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 | Component | Technology | Note |
 |---|---|---|
 | Core (Layer 1) | Python package, `src/wheel/` | No external dependencies except stdlib + standard data libs |
-| Provider (Layer 0) | yfinance | Market data. Schwab API is the Phase 4 upgrade. |
+| Provider (Layer 0) | yfinance | Market data. **Primary and first, always.** Schwab API is the Phase 4 upgrade. |
+| Fallback (Layer 0) | FMP | **Null-fill only, added 2026-08-11.** Consulted only for fields yfinance returned null on, only for the four in `wheel_mcp.fmp.FILLABLE_FIELDS`, only when a key is present. ~50 requests/run. Never parallel, never primary. Key from `.env`, never from config. |
 | Universe (Layer 0) | CBOE equity options symbol directory | **Second source, added 2026-08-11.** Enumeration only — CBOE listing is not a quality filter. ~5,300 names, published daily as CSV. Cached to `WheelOps/universe/`, fetched at most once a day, reused stale on fetch failure with a loud warning. |
 | Data format | JSON snapshots, JSONL decisions, CSV positions, Markdown output | All human-readable, all diffable |
 | Testing | pytest, golden files | Layer 1 tests run < 1s with no network |
@@ -144,8 +145,12 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 
 **Explicitly removed (not deferred):**
 - Flask / serve.py / HTML reporting — UI doesn't converge
-- FMP — no adapter, no rescue path, no provenance scaffolding kept "for later"
 - Any direct API call from Layer 1 — provider isolation is structural
+- **FMP as a primary or parallel source** — it is a bounded null-fill fallback and
+  nothing else. The 2026-08-03 removal was total; 2026-08-11 readmits it under four
+  constraints (allowlisted fields, null-only trigger, key in `.env`, mixed-source
+  snapshots self-identify). Widening the allowlist is a governance decision, pinned
+  by `tests/test_fmp.py::AllowlistTests`.
 
 ---
 
@@ -200,20 +205,21 @@ Decisions made in conversation that aren't yet in governance docs. Newest first.
 
 | Date | Decision | Rationale | Supersedes |
 |---|---|---|---|
+| 2026-08-11 | **FMP readmitted as a bounded null-fill fallback** over four allowlisted fields | The 2026-08-03 removal was right about the general case and §4.4 is unchanged, but a hard gate reading CANNOT_EVALUATE fails closed — a null `net_income_ttm` rejects a name on a data gap, not on its merits. Measured residual: 17 of 1,285 names, ~50 requests/run | "FMP fully removed" (2026-08-03); "FMP removal confirmed" (2026-08-04); the FMP gap-fill argument in the 2026-08-06 null-handling row |
 | 2026-08-11 | Universe comes from the **CBOE options symbol directory**, not S&P index constituents | Index membership correlates with optionability but does not decide it, and a name without listed options cannot be wheeled at all. Measured on the 2026-08-11 run: 34 screened names had no CBOE-listed options, including the top-ranked monitored name. Universe 1,506 → 5,334 | S&P 500/400/600 scraping (moved to `legacy/universe_source_wikipedia.py`) |
 | 2026-08-11 | Screener sources from a broad universe, not a hand-picked watchlist | A screener that ranks a list you already chose inverts its purpose | `watchlist` config key |
 | 2026-08-11 | Two-stage fetch: cheap scan then deep snapshot | A deep snapshot is 5 provider calls; spending it on names rejected on price alone costs ~20 min and learns nothing | Single-stage acquire |
 | 2026-08-11 | ST-SEL-01 split: only both-negative fails; one negative flags | "Profitable company with solid cash flow" is two criteria. A write-down with cash still coming in is a question, not a rejection | Single-gate ST-SEL-01 |
 | 2026-08-11 | Monitored tier replaces the thesis-required list; AL-SIZ-03/04 scoped to thesis-backed names and open positions | At 200 names every week clusters, so an unscoped flag means nothing; a full list is a phone book, not a screen | Full-list output |
 | 2026-08-06 | ST-SEL-10 split: hard gate >80% vol, flag 50-80%, pass <50% | Proxy data (realized vol) too approximate for hard rejection near the ~50% boundary; 80%+ is unambiguous on any measure | Single-threshold gate |
-| 2026-08-06 | Graceful null handling in scorers: degrade, don't crash; null ≠ zero | Missing data is a scorer problem, not a source problem; second provider doesn't fix it | FMP gap-fill argument |
+| 2026-08-06 | Graceful null handling in scorers: degrade, don't crash; null ≠ zero | Missing data is a scorer problem, not a source problem | FMP gap-fill argument — **partially superseded 2026-08-11**: null handling stays the rule, but the 1.3% residual is now filled rather than failed closed |
 | 2026-08-06 | Legacy gates.py superseded by snapshot-contract scorers; remove in single dedicated commit after all 13 built | Two implementations during port is known state; cleanup is one atomic commit | — |
 | 2026-08-04 | Yahoo sector labels authoritative at pilot scale | 3–5 names don't need GICS precision; consistency > accuracy at this n | G-11 partially closed |
-| 2026-08-04 | yfinance is Layer 0 provider; Schwab API is Phase 4 upgrade | Snapshot boundary makes provider low-stakes; yfinance covers 9/10 data points | FMP removal confirmed |
+| 2026-08-04 | yfinance is Layer 0 provider; Schwab API is Phase 4 upgrade | Snapshot boundary makes provider low-stakes; yfinance covers 9/10 data points | FMP removal confirmed — **amended 2026-08-11**: yfinance is primary and first; FMP fills its nulls |
 | 2026-08-04 | Plugins (finance, S&P) live at Layer 2, not Layer 0 | Plugins operate inside Claude context; cannot be snapshotted or batch-run | Architecture clarified |
 | 2026-08-04 | G-14 deferred; start accumulating IV snapshots now | IV Rank needs ~26 weeks of history; source doesn't use it | AL-ENT-01 unenforced |
 | 2026-08-03 | UI removed, not deferred | UI doesn't converge; output is files | Flask/serve.py cut |
-| 2026-08-03 | FMP fully removed | No adapter, no rescue path | FMP cut |
+| 2026-08-03 | FMP fully removed | No adapter, no rescue path | FMP cut — **superseded 2026-08-11** by the bounded fallback |
 | 2026-08-03 | Snapshot-then-score is architectural | Makes golden-file testing and reproducibility possible | — |
 | 2026-08-03 | WheelOps as sibling to repo | Privacy by geometry, not by .gitignore | — |
 | 2026-08-03 | Repo moved to ~/Developer/wheel-engine/ | iCloud sync fights git internals | — |
