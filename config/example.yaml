@@ -26,6 +26,9 @@ universe:
   include: [SPY, QQQ]
   exclude: []
 
+# Behavior only -- never secrets. The FMP API key is loaded from .env; see
+# .env.example for the tracked template. An API key must not appear in
+# config.yaml, in this file, or in any other tracked file.
 data_sources:
   yfinance:
     # Global pacing applies even if a future caller uses multiple workers.

@@ -4,12 +4,13 @@ pandas>=2.0,<3
 numpy>=1.24,<3
 PyYAML>=6.0,<7
 lxml>=5,<7
-# Universe enumeration: Wikipedia 403s pandas.read_html's default agent, so
-# the constituent fetch goes through requests with an identifying UA.
+# Universe enumeration and the FMP fallback both fetch with an identifying UA
+# rather than the default agent.
 requests>=2.31,<3
-
-# Quarantined in legacy/ -- drop these once legacy/ is deleted.
-#   Jinja2         : legacy/html_render.py (HTML report)
-#   python-dotenv  : legacy/fmp_adapter.py (FMP key loading)
-Jinja2>=3.1,<4
+# Secret loading at the Layer 0 edge: wheel_mcp/fmp.py reads FMP_API_KEY from
+# .env. Layer 1 never sees a key -- enforced by tests/test_provider_isolation.py.
 python-dotenv>=1.0,<2
+
+# Quarantined in legacy/ -- drop this once legacy/ is deleted.
+#   Jinja2 : legacy/html_render.py (HTML report)
+Jinja2>=3.1,<4
