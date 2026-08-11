@@ -1,18 +1,18 @@
 {
   "F": {
-    "classification": "rejected",
+    "classification": "thesis_required",
     "composite": 100.0,
     "results": [
       {
         "is_approximation": false,
-        "kind": "gate",
+        "kind": "flag",
         "metrics": {
           "net_income_ttm": -7395999744.0,
           "operating_cash_flow_ttm": 16947000320.0
         },
-        "reason": "net income $-7.40B is not positive.",
+        "reason": "net income $-7.40B is negative but operating cash flow $16.95B is positive -- investigate one-time charges before treating this as unprofitable.",
         "rule_id": "ST-SEL-01",
-        "verdict": "fail"
+        "verdict": "flag"
       },
       {
         "is_approximation": false,

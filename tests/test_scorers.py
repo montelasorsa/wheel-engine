@@ -147,19 +147,47 @@ class StSel01ProfitabilityTests(unittest.TestCase):
         self.assertIn("net income", result.reason)
         self.assertIn("operating cash flow", result.reason)
 
-    def test_negative_cash_flow_alone_fails(self) -> None:
+    def test_negative_cash_flow_with_positive_income_flags(self) -> None:
+        """The earnings-not-cash-backed case: a question, not a rejection."""
+
         document = load(EQUITY)
         document["fundamentals"]["operating_cash_flow_ttm"] = -1
         result = evaluate_st_sel_01(document, THRESHOLDS)
+        self.assertEqual(result.verdict, Verdict.FLAG)
+        self.assertEqual(result.kind, RuleKind.FLAG)
+        self.assertFalse(result.disqualifying)
+        self.assertIn("not cash-backed", result.reason)
+
+    def test_negative_income_with_positive_cash_flow_flags(self) -> None:
+        """F's real shape: a write-down, with the cash still coming in."""
+
+        document = load(EQUITY)
+        document["fundamentals"]["net_income_ttm"] = -7_400_000_000
+        result = evaluate_st_sel_01(document, THRESHOLDS)
+        self.assertEqual(result.verdict, Verdict.FLAG)
+        self.assertFalse(result.disqualifying)
+        self.assertIn("one-time charges", result.reason)
+
+    def test_only_both_negative_disqualifies(self) -> None:
+        document = load(EQUITY)
+        document["fundamentals"]["net_income_ttm"] = -1
+        document["fundamentals"]["operating_cash_flow_ttm"] = -1
+        result = evaluate_st_sel_01(document, THRESHOLDS)
         self.assertEqual(result.verdict, Verdict.FAIL)
-        self.assertIn("operating cash flow", result.reason)
-        self.assertNotIn("net income", result.reason)
+        self.assertTrue(result.disqualifying)
+
+    def test_a_flagged_name_still_clears_the_hard_gates(self) -> None:
+        document = load(EQUITY)
+        document["fundamentals"]["net_income_ttm"] = -7_400_000_000
+        self.assertTrue(clears_hard_gates(evaluate_hard_gates(document, THRESHOLDS)))
 
     def test_exactly_zero_is_not_positive(self) -> None:
+        # Zero is a real signal, not missing data (§4.4): it fails the
+        # positivity test, so with OCF still positive this is the flag case.
         document = load(EQUITY)
         document["fundamentals"]["net_income_ttm"] = 0
         self.assertEqual(
-            evaluate_st_sel_01(document, THRESHOLDS).verdict, Verdict.FAIL
+            evaluate_st_sel_01(document, THRESHOLDS).verdict, Verdict.FLAG
         )
 
     def test_missing_fundamentals_on_an_equity_cannot_be_evaluated(self) -> None:

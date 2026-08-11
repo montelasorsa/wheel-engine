@@ -126,7 +126,9 @@ class LiveGoldenBaselineTests(unittest.TestCase):
         """Pins the 2026-08-06 headline results so the file stays honest."""
 
         expected = json.loads(EXPECTED_PATH.read_text())
-        self.assertEqual(expected["F"]["classification"], "rejected")
+        # ST-SEL-01 split: F is NI-negative but OCF-positive, so it flags
+        # rather than failing, and clears fitness into the thesis tier.
+        self.assertEqual(expected["F"]["classification"], "thesis_required")
         self.assertEqual(expected["MARA"]["classification"], "rejected")
         self.assertEqual(expected["T"]["classification"], "thesis_required")
         self.assertEqual(expected["KO"]["classification"], "thesis_required")

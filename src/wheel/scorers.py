@@ -263,6 +263,10 @@ def evaluate_st_sel_01(
 
     income_ok = net_income > thresholds.min_ttm_net_income
     cash_ok = cash_flow > thresholds.min_operating_cash_flow
+
+    # "Profitable company with solid cash flow" is two criteria, not one, so
+    # one negative measure is a question rather than a verdict. Only both
+    # negative is unambiguously unprofitable and disqualifying.
     if income_ok and cash_ok:
         return RuleResult(
             rule_id="ST-SEL-01",
@@ -275,16 +279,40 @@ def evaluate_st_sel_01(
             metrics=observed,
         )
 
-    failures = []
+    if not income_ok and not cash_ok:
+        return RuleResult(
+            rule_id="ST-SEL-01",
+            kind=RuleKind.GATE,
+            verdict=Verdict.FAIL,
+            reason=(
+                f"net income {_money(net_income)} is not positive; operating "
+                f"cash flow {_money(cash_flow)} is not positive."
+            ),
+            metrics=observed,
+        )
+
     if not income_ok:
-        failures.append(f"net income {_money(net_income)} is not positive")
-    if not cash_ok:
-        failures.append(f"operating cash flow {_money(cash_flow)} is not positive")
+        # A write-down or one-time charge looks exactly like this. The cash
+        # that funds a multi-month hold is still coming in.
+        reason = (
+            f"net income {_money(net_income)} is negative but operating cash "
+            f"flow {_money(cash_flow)} is positive -- investigate one-time "
+            "charges before treating this as unprofitable."
+        )
+    else:
+        # The inverse and arguably the worse case: reported profit the
+        # business is not converting to cash. ST-SEL-01 exists so a
+        # multi-month hold is survivable, and cash is what funds survival.
+        reason = (
+            f"operating cash flow {_money(cash_flow)} is negative while net "
+            f"income {_money(net_income)} is positive -- earnings are not "
+            "cash-backed; investigate before relying on the reported profit."
+        )
     return RuleResult(
         rule_id="ST-SEL-01",
-        kind=RuleKind.GATE,
-        verdict=Verdict.FAIL,
-        reason="; ".join(failures) + ".",
+        kind=RuleKind.FLAG,
+        verdict=Verdict.FLAG,
+        reason=reason,
         metrics=observed,
     )
 
