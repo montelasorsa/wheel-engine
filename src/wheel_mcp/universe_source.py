@@ -19,11 +19,32 @@ Fetch and normalize only. No interpretation: the floors live in
 from __future__ import annotations
 
 from datetime import date
+from io import StringIO
 import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 import pandas as pd
+import requests
+
+# Wikipedia returns 403 to pandas.read_html's default urllib agent, so the
+# fetch goes through requests with an identifying UA. Wikimedia's robot policy
+# asks for a contact-bearing agent string rather than a browser impersonation.
+USER_AGENT = (
+    "wheel-engine/0.1 (personal options screener; "
+    "https://github.com/ - contact via repo owner)"
+)
+REQUEST_TIMEOUT_SECONDS = 30
+
+
+def read_html_tables(url: str) -> list[pd.DataFrame]:
+    """Fetch one page with a proper agent and parse its tables."""
+
+    response = requests.get(
+        url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT_SECONDS
+    )
+    response.raise_for_status()
+    return pd.read_html(StringIO(response.text))
 
 # Wikipedia's index pages. Each carries a constituents table whose ticker
 # column is named differently per page, hence the per-source column hints.
@@ -171,7 +192,7 @@ def read_cache(path: str | Path) -> list[dict[str, Any]]:
 
 def fetch_constituents(
     *,
-    read_html: Callable[..., list[pd.DataFrame]] = pd.read_html,
+    read_html: Callable[..., list[pd.DataFrame]] = read_html_tables,
     sources: Sequence[Mapping[str, Any]] = INDEX_SOURCES,
 ) -> list[dict[str, Any]]:
     """Fetch and merge every index table. Raises if none could be read."""
@@ -212,7 +233,7 @@ def load_universe(
     universe_dir: str | Path,
     *,
     on: date,
-    read_html: Callable[..., list[pd.DataFrame]] = pd.read_html,
+    read_html: Callable[..., list[pd.DataFrame]] = read_html_tables,
     sources: Sequence[Mapping[str, Any]] = INDEX_SOURCES,
 ) -> tuple[list[dict[str, Any]], str | None]:
     """Fetch constituents, caching on success and reusing stale on failure.

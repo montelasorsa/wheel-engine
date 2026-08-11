@@ -4,11 +4,12 @@ pandas>=2.0,<3
 numpy>=1.24,<3
 PyYAML>=6.0,<7
 lxml>=5,<7
+# Universe enumeration: Wikipedia 403s pandas.read_html's default agent, so
+# the constituent fetch goes through requests with an identifying UA.
+requests>=2.31,<3
 
 # Quarantined in legacy/ -- drop these once legacy/ is deleted.
 #   Jinja2         : legacy/html_render.py (HTML report)
 #   python-dotenv  : legacy/fmp_adapter.py (FMP key loading)
-#   requests       : legacy/fmp_adapter.py (FMP HTTP calls)
 Jinja2>=3.1,<4
 python-dotenv>=1.0,<2
-requests>=2.31,<3
