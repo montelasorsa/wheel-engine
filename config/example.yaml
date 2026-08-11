@@ -14,9 +14,17 @@ paths:
   # source of truth; this only ever receives copies.
   backup: /Users/montelasorsa/Library/Mobile Documents/com~apple~CloudDocs/AdVenture Labs/WheelOps-backup/
 
+# ST-SEL-07 / AL-SEL-06: the screener surfaces candidates from a broad
+# universe rather than ranking a hand-picked list. Index composition is a
+# pragmatic way to enumerate ~1,500 liquid US equities without buying an
+# exchange listing feed -- it is enumeration, NOT a quality filter. The
+# screener's own rules do the filtering.
 universe:
-  file: config/universe.csv
-  ticker_column: ticker
+  source: us_equities_with_options
+  market_cap_floor: 2_000_000_000
+  price_floor: 10
+  include: [SPY, QQQ]
+  exclude: []
 
 data_sources:
   yfinance:
@@ -80,12 +88,6 @@ thresholds:
 
 # ST-SEL-07: the operator's watchlist (~10 names, reviewed every few weeks).
 # Operator-edited. Tickers are never hardcoded in code.
-watchlist:
-  - F
-  - T
-  - KO
-  - MARA
-  - SPY
 
 account:
   # AL-SEL-02 inputs. No broker link at pilot -- operator-maintained.

@@ -21,7 +21,13 @@ RUN_DATE = date(2026, 8, 15)
 def make_config(wheelops: Path) -> dict:
     return {
         "paths": {"wheelops": str(wheelops)},
-        "watchlist": ["F", "SPY", "APLD", "MARA", "GHOST"],
+        "universe": {
+            "source": "us_equities_with_options",
+            "price_floor": 10,
+            "market_cap_floor": 2_000_000_000,
+            "include": [],
+            "exclude": [],
+        },
         "account": {"net_liq": 12000, "per_name_cap": 0.25},
         "weights": {
             "stability": 0.30,
@@ -78,7 +84,9 @@ class WheelScreenTests(unittest.TestCase):
         self.assertIn("| 2 | MARA |", markdown)       # in zone, flagged
         self.assertIn("| · | SPY |", markdown)        # locked, out of zone
         self.assertIn("**APLD**", markdown)           # rejected
-        self.assertIn("**GHOST** — no snapshot", markdown)
+        # A name with no snapshot is simply absent now: the screen enumerates
+        # what Stage 2 produced rather than checking a configured list.
+        self.assertNotIn("GHOST", markdown)
 
     def test_cross_candidate_rules_reach_the_report(self) -> None:
         _, markdown = run_screen(make_config(self.wheelops), RUN_DATE)
@@ -108,11 +116,12 @@ class WheelScreenTests(unittest.TestCase):
         self.assertIn("$1,100 needed vs $12,000 available", markdown)
         self.assertIn("Consumer Cyclical 100%", markdown)
 
-    def test_empty_watchlist_is_refused(self) -> None:
-        config = make_config(self.wheelops)
-        config["watchlist"] = []
-        with self.assertRaises(ValueError):
-            run_screen(config, RUN_DATE)
+    def test_empty_snapshot_folder_renders_an_empty_screen(self) -> None:
+        for path in (self.wheelops / "snapshots").glob("*.json"):
+            path.unlink()
+        _, markdown = run_screen(make_config(self.wheelops), RUN_DATE)
+        self.assertIn("# Wheel screen", markdown)
+        self.assertIn("No in-zone candidates", markdown)
 
 
 if __name__ == "__main__":

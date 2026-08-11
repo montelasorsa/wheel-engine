@@ -1,8 +1,14 @@
-"""Layer 0 acquisition run: fetch the watchlist, write contract snapshots.
+"""Layer 0 acquisition: two-stage universe scan, then deep snapshots.
 
-Fetch and write only -- no scoring, no interpretation (AGENTS.md §4). One bad
-ticker never kills the run; it is reported and the screen lists it as missing.
-Run from the repo root:
+Stage 1 is a light scan of the whole universe -- price, market cap, sector --
+filtered by the two cheapest rules. Stage 2 fetches the full snapshot only for
+Stage 1 survivors. The split exists because a deep snapshot costs five provider
+calls: running it on 1,500 names to reject 1,300 of them on price alone would
+spend twenty minutes learning nothing.
+
+Fetch and write only (AGENTS.md §4). The filtering rules live in
+`wheel.universe`, which is pure and provider-free; this module supplies it with
+scanned rows and acts on the answer.
 
     PYTHONPATH=src python -m wheel_mcp.acquire
 """
@@ -10,12 +16,22 @@ Run from the repo root:
 from __future__ import annotations
 
 from datetime import date, datetime
+import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from wheel.config_io import load_config, wheelops_dir
+from wheel.snapshot_schema import snapshot_filename
+from wheel.universe import (
+    Stage1Result,
+    Stage1Survivor,
+    filter_stage1,
+    should_reuse_snapshot,
+    universe_filters_from_config,
+)
 
 from .snapshot_writer import build_snapshot_document, write_snapshot_document
+from .universe_source import load_universe
 from .yahoo import (
     DEFAULT_REQUEST_THROTTLE,
     fetch_earnings_calendar,
@@ -23,89 +39,225 @@ from .yahoo import (
     yfinance_policy_from_config,
 )
 
-
-def watchlist_from_config(config: Mapping[str, Any]) -> tuple[str, ...]:
-    """The operator's watchlist (ST-SEL-07). Never hardcoded."""
-
-    raw = config.get("watchlist")
-    if not isinstance(raw, (list, tuple)) or not raw:
-        raise ValueError(
-            "config.yaml needs a non-empty `watchlist:` list (ST-SEL-07)."
-        )
-    symbols: list[str] = []
-    seen: set[str] = set()
-    for entry in raw:
-        symbol = str(entry).strip().upper()
-        if symbol and symbol not in seen:
-            seen.add(symbol)
-            symbols.append(symbol)
-    return tuple(symbols)
+SCAN_PROGRESS_EVERY = 50
+SNAPSHOT_PROGRESS_EVERY = 10
 
 
-def thesis_note_status(
-    wheelops: Path, symbol: str
-) -> tuple[bool, str | None]:
+def thesis_note_status(wheelops: Path, symbol: str) -> tuple[bool, str | None]:
     """AL-SEL-04 input: does WheelOps/notes/<TICKER>.md exist?"""
 
     relative = f"notes/{symbol}.md"
-    exists = (wheelops / relative).is_file()
-    return exists, (relative if exists else None)
+    return (wheelops / relative).is_file(), relative
 
 
-def acquire_watchlist(
+def scan_universe(
+    tickers: Sequence[str],
+    *,
+    policy: Any,
+    fetch_snapshot: Callable[..., Any],
+    say: Callable[[str], None],
+) -> list[dict[str, Any]]:
+    """Stage 1 light scan: price, market cap and sector per name.
+
+    Uses the same paced fetch as Stage 2 rather than a separate batch path:
+    `Ticker.info` is where market cap and sector live, and a batched price
+    download would still leave that call per name. One code path, one throttle,
+    one place for a provider change to land.
+    """
+
+    rows: list[dict[str, Any]] = []
+    errors = 0
+    for index, ticker in enumerate(tickers, 1):
+        try:
+            snapshot = fetch_snapshot(
+                ticker, period="5d", policy=policy, throttle=DEFAULT_REQUEST_THROTTLE
+            )
+            fundamentals = snapshot.fundamentals
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "price": fundamentals.get("current_price"),
+                    "market_cap": fundamentals.get("market_cap"),
+                    "sector": fundamentals.get("sector"),
+                }
+            )
+        except Exception:
+            errors += 1
+            rows.append({"ticker": ticker, "price": None, "market_cap": None})
+        if index % SCAN_PROGRESS_EVERY == 0 or index == len(tickers):
+            say(f"  SCAN {index}/{len(tickers)} scanned={len(rows)} errors={errors}")
+    return rows
+
+
+def deep_snapshot(
+    survivors: Sequence[Stage1Survivor],
+    *,
+    wheelops: Path,
+    run_date: date,
+    fetched_at: datetime,
+    policy: Any,
+    fetch_snapshot: Callable[..., Any],
+    fetch_calendar: Callable[..., Any],
+    say: Callable[[str], None],
+) -> dict[str, Any]:
+    """Stage 2: full snapshot per survivor, reusing same-week stable ones."""
+
+    snapshots_dir = wheelops / "snapshots"
+    written: list[Path] = []
+    reused: list[str] = []
+    errors: list[tuple[str, str]] = []
+
+    for index, survivor in enumerate(survivors, 1):
+        ticker = survivor.ticker
+        existing_path = snapshots_dir / snapshot_filename(run_date.isoformat(), ticker)
+        existing: Mapping[str, Any] | None = None
+
+        # Look at the newest snapshot for this ticker, whatever its date.
+        candidates = sorted(snapshots_dir.glob(f"*_{ticker}.json"))
+        if candidates:
+            try:
+                existing = json.loads(candidates[-1].read_text())
+            except (OSError, json.JSONDecodeError):
+                existing = None
+
+        if should_reuse_snapshot(
+            existing, run_date=run_date.isoformat(), stage1_price=survivor.price
+        ):
+            reused.append(ticker)
+        else:
+            try:
+                snapshot = fetch_snapshot(
+                    ticker, policy=policy, throttle=DEFAULT_REQUEST_THROTTLE
+                )
+                try:
+                    calendar = fetch_calendar(
+                        ticker, policy=policy, throttle=DEFAULT_REQUEST_THROTTLE
+                    )
+                except Exception:
+                    calendar = None  # scorers degrade; the run continues
+                exists, path = thesis_note_status(wheelops, ticker)
+                document = build_snapshot_document(
+                    snapshot,
+                    calendar=calendar,
+                    run_date=run_date,
+                    fetched_at=fetched_at,
+                    thesis_note_exists=exists,
+                    thesis_note_path=path if exists else None,
+                )
+                written.append(write_snapshot_document(document, snapshots_dir))
+            except Exception as error:
+                errors.append((ticker, f"{type(error).__name__}: {error}"))
+
+        if index % SNAPSHOT_PROGRESS_EVERY == 0 or index == len(survivors):
+            say(
+                f"  SNAPSHOT {index}/{len(survivors)} "
+                f"fetched={len(written)} reused={len(reused)} errors={len(errors)}"
+            )
+    return {"written": written, "reused": reused, "errors": errors}
+
+
+def acquire_universe(
     config: Mapping[str, Any],
     *,
     run_date: date,
     fetched_at: datetime,
     fetch_snapshot: Callable[..., Any] = fetch_ticker_snapshot,
     fetch_calendar: Callable[..., Any] = fetch_earnings_calendar,
-) -> tuple[list[Path], list[tuple[str, str]]]:
-    """Fetch every watchlist name; return (written paths, per-ticker errors)."""
+    say: Callable[[str], None] = print,
+) -> dict[str, Any]:
+    """Run both stages; return the counts the screen header reports."""
 
     wheelops = wheelops_dir(config)
-    snapshots_dir = wheelops / "snapshots"
     policy = yfinance_policy_from_config(config)
+    filters = universe_filters_from_config(config)
 
-    written: list[Path] = []
-    errors: list[tuple[str, str]] = []
-    for symbol in watchlist_from_config(config):
-        try:
-            snapshot = fetch_snapshot(
-                symbol, policy=policy, throttle=DEFAULT_REQUEST_THROTTLE
-            )
-            try:
-                calendar = fetch_calendar(
-                    symbol, policy=policy, throttle=DEFAULT_REQUEST_THROTTLE
-                )
-            except Exception:
-                calendar = None  # earnings absence is survivable; scorers degrade
-            thesis_exists, thesis_path = thesis_note_status(wheelops, symbol)
-            document = build_snapshot_document(
-                snapshot,
-                calendar=calendar,
-                run_date=run_date,
-                fetched_at=fetched_at,
-                thesis_note_exists=thesis_exists,
-                thesis_note_path=thesis_path,
-            )
-            written.append(write_snapshot_document(document, snapshots_dir))
-        except Exception as error:  # one bad ticker must never kill the run
-            errors.append((symbol, f"{type(error).__name__}: {error}"))
-    return written, errors
+    say("STAGE 0 loading index constituents")
+    constituents, staleness = load_universe(wheelops / "universe", on=run_date)
+    if staleness:
+        say(f"  WARNING {staleness}")
+    tickers = [str(row["ticker"]) for row in constituents]
+    say(f"  UNIVERSE {len(tickers)} names")
+
+    say(f"STAGE 1 scanning {len(tickers)} names")
+    rows = scan_universe(
+        tickers, policy=policy, fetch_snapshot=fetch_snapshot, say=say
+    )
+    stage1: Stage1Result = filter_stage1(rows, filters)
+    say(
+        f"  SURVIVORS {len(stage1.survivors)} of {stage1.scanned} "
+        f"(rejected {stage1.rejected_count})"
+    )
+    for reason, names in stage1.rejected.items():
+        say(f"    {reason}: {len(names)}")
+
+    say(f"STAGE 2 deep snapshot for {len(stage1.survivors)} survivors")
+    stage2 = deep_snapshot(
+        stage1.survivors,
+        wheelops=wheelops,
+        run_date=run_date,
+        fetched_at=fetched_at,
+        policy=policy,
+        fetch_snapshot=fetch_snapshot,
+        fetch_calendar=fetch_calendar,
+        say=say,
+    )
+    for ticker, reason in stage2["errors"]:
+        say(f"  FETCH-ERROR {ticker}: {reason}")
+
+    return {
+        "universe_size": len(tickers),
+        "universe_stale_warning": staleness,
+        "stage1_survivors": len(stage1.survivors),
+        "stage1_rejected": stage1.rejected,
+        "snapshots_written": len(stage2["written"]),
+        "snapshots_reused": len(stage2["reused"]),
+        "fetch_errors": stage2["errors"],
+        "survivor_tickers": tuple(s.ticker for s in stage1.survivors),
+    }
+
+
+def write_run_manifest(
+    wheelops: Path, run_date: date, summary: Mapping[str, Any]
+) -> Path:
+    """Persist Stage 1/2 counts so the Layer 1 screen can report them.
+
+    The screen reads snapshots, not the acquisition run, so without this it
+    could not know how large the universe was or how many names never made it
+    to Stage 2.
+    """
+
+    directory = wheelops / "universe"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"run-{run_date.isoformat()}.json"
+    payload = {
+        key: value
+        for key, value in summary.items()
+        if key not in ("survivor_tickers",)
+    }
+    payload["stage1_rejected"] = {
+        reason: len(names) for reason, names in summary["stage1_rejected"].items()
+    }
+    payload["fetch_errors"] = len(summary["fetch_errors"])
+    temporary = path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+    return path
 
 
 def main() -> int:
     config = load_config("config.yaml")
     now = datetime.now().astimezone()
-    written, errors = acquire_watchlist(
-        config, run_date=now.date(), fetched_at=now
+    summary = acquire_universe(config, run_date=now.date(), fetched_at=now)
+    write_run_manifest(wheelops_dir(config), now.date(), summary)
+    print(
+        f"ACQUIRED universe={summary['universe_size']} "
+        f"stage1={summary['stage1_survivors']} "
+        f"written={summary['snapshots_written']} "
+        f"reused={summary['snapshots_reused']} "
+        f"errors={len(summary['fetch_errors'])}",
+        flush=True,
     )
-    for path in written:
-        print(f"SNAPSHOT {path}", flush=True)
-    for symbol, reason in errors:
-        print(f"FETCH-ERROR {symbol}: {reason}", flush=True)
-    print(f"ACQUIRED {len(written)} errors={len(errors)}", flush=True)
-    return 0 if written else 1
+    return 0 if summary["snapshots_written"] or summary["snapshots_reused"] else 1
 
 
 if __name__ == "__main__":

@@ -43,35 +43,49 @@ def read_position_rows(positions_dir: Path) -> list[dict[str, Any]]:
 
 def load_snapshot_documents(
     snapshots_dir: Path,
-    watchlist: tuple[str, ...],
     run_date: date,
 ) -> tuple[list[Mapping[str, Any]], list[tuple[str, str]]]:
-    """Load and validate this run's snapshot per watchlist name.
+    """Load and validate every snapshot Layer 0 wrote for this run date.
 
-    Returns (documents, missing) where missing carries (ticker, reason) for
-    names with no valid snapshot -- surfaced, never dropped.
+    The universe is whatever Stage 2 produced, so the screen enumerates the
+    snapshot folder rather than a configured list -- there is no longer a
+    hand-picked watchlist to iterate.
+
+    Returns (documents, unusable) where unusable carries (ticker, reason) for
+    snapshots that exist but cannot be scored -- surfaced, never dropped.
     """
 
     documents: list[Mapping[str, Any]] = []
-    missing: list[tuple[str, str]] = []
-    for symbol in watchlist:
-        path = snapshots_dir / snapshot_filename(run_date.isoformat(), symbol)
-        if not path.is_file():
-            missing.append((symbol, f"no snapshot at {path.name}"))
-            continue
+    unusable: list[tuple[str, str]] = []
+    prefix = f"{run_date.isoformat()}_"
+    for path in sorted(Path(snapshots_dir).glob(f"{prefix}*.json")):
+        symbol = path.stem[len(prefix):]
         try:
             document = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError) as error:
-            missing.append((symbol, f"unreadable snapshot: {error}"))
+            unusable.append((symbol, f"unreadable snapshot: {error}"))
             continue
         errors = validate_snapshot(document)
         if errors:
-            missing.append(
+            unusable.append(
                 (symbol, f"snapshot violates the contract: {errors[0]}")
             )
             continue
         documents.append(document)
-    return documents, missing
+    return documents, unusable
+
+
+def read_run_manifest(wheelops: Path, run_date: date) -> dict[str, Any]:
+    """Stage 1/2 counts from the acquisition run, if it left a manifest."""
+
+    path = wheelops / "universe" / f"run-{run_date.isoformat()}.json"
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def run_screen(
@@ -82,19 +96,8 @@ def run_screen(
 
     wheelops = wheelops_dir(config)
     thresholds = selection_thresholds_from_config(config)
-    watchlist = tuple(
-        str(entry).strip().upper()
-        for entry in config.get("watchlist", [])
-        if str(entry).strip()
-    )
-    if not watchlist:
-        raise ValueError(
-            "config.yaml needs a non-empty `watchlist:` list (ST-SEL-07)."
-        )
 
-    documents, missing = load_snapshot_documents(
-        wheelops / "snapshots", watchlist, run_date
-    )
+    documents, missing = load_snapshot_documents(wheelops / "snapshots", run_date)
     scored = [
         ScoredName(
             document=document,
