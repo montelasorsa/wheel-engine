@@ -22,6 +22,24 @@ A pass/fail boolean cannot express what the rules actually require:
 - `CANNOT_EVALUATE` -- the rule applies but the data is absent. Distinct from
   FAIL: a missing field is a data problem, not a judgment about the name.
   Callers fail closed (never treat it as a pass), but they report it honestly.
+
+## Verdicts gate; scores rank
+
+A verdict answers whether a rule was satisfied. It cannot answer *how well*,
+and at universe scale that difference is the whole game: on the 2026-08-11 run
+the five scoring rules produced only ~30 distinct composites across 1,285
+names, with 255 tied at exactly 100. Ties broke alphabetically, so the
+operator's "top 5" was the alphabetically-first five of 111 equal names.
+
+So a `RuleResult` now carries an optional continuous `score` (0-100) alongside
+its verdict. Gates stay strictly binary -- ST-SEL-01 both-negative, ST-SEL-04
+below the floor, ST-SEL-10 above the ceiling still reject outright. Everything
+that *ranks* is a curve, expressed as a `piecewise` anchor table so the shape is
+readable and tunable in one place rather than buried in arithmetic.
+
+The score stays attached to its rule ID for the same reason the verdict does:
+§2 says a recommendation that cannot be mapped to a rule ID is a bug, and that
+applies to a number as much as to a sentence.
 """
 
 from __future__ import annotations
@@ -48,10 +66,15 @@ IV_PROXY_NOTE = (
 class Verdict(str, Enum):
     """What a rule concluded about one name.
 
-    FLAG is the fifth because several rules are graduated rather than binary.
-    ST-SEL-10 disqualifies above 80% volatility but merely warns between 50%
-    and 80%; collapsing that middle band into either PASS or FAIL would
-    either hide real risk or reject names the methodology permits.
+    FLAG is the fifth, and after the move to continuous scoring it is reserved
+    for the genuinely binary things an operator must *read*, not merely weigh:
+    ST-SEL-01's net-income/cash-flow split, where a write-down and a failing
+    business look identical until someone checks, and ST-ENT-05's earnings
+    proximity, which is a do-not-open-across-it fact rather than a quantity.
+
+    Graduated concerns are no longer flags. ST-SEL-10's 50-80% band and
+    ST-SEL-12's near-high band both became curve segments, because at universe
+    scale a flag that fires on 42% of names has stopped carrying information.
     """
 
     PASS = "pass"
@@ -71,7 +94,15 @@ class RuleKind(str, Enum):
 
 @dataclass(frozen=True)
 class RuleResult:
-    """One rule's auditable verdict on one snapshot."""
+    """One rule's auditable verdict on one snapshot, and how strongly.
+
+    `score` is 0-100 and present only on rules that rank. None means "this rule
+    contributes no ranking signal for this name" -- either it is a pure gate, or
+    the data it needs is absent, or it does not govern this instrument. The
+    composite excludes those and renormalizes the remaining weights (§4.4),
+    which is why None and 0.0 must never be conflated: 0.0 is a name that scored
+    worst, None is a name the rule cannot speak about.
+    """
 
     rule_id: str
     kind: RuleKind
@@ -82,6 +113,7 @@ class RuleResult:
     )
     is_approximation: bool = False
     approximation_note: str | None = None
+    score: float | None = None
 
     @property
     def disqualifying(self) -> bool:
@@ -96,20 +128,111 @@ class RuleResult:
         return self.kind is RuleKind.GATE and self.verdict is Verdict.FAIL
 
 
-# ST-SEL-10 bands. The Source Brief calls IV "materially above ~50%" a
-# rejection signal; splitting that into a warning band and a disqualifying
-# band keeps the 50% line meaningful without rejecting every name that touches
-# it -- which matters more than usual because these fire on a proxy.
-IV_FLAG_ABOVE = 0.50
+# ST-SEL-10's disqualifying ceiling. The Source Brief calls IV "materially
+# above ~50%" a rejection signal; 80% is where that is unambiguous on any
+# measure, which matters because this fires on a realized-vol proxy. The 50%
+# line is no longer a verdict boundary -- it survives as an anchor on the
+# volatility curve below, where it shapes the ranking instead of splitting it.
 IV_DISQUALIFY_ABOVE = 0.80
-
-# ST-SEL-12. The Source Brief says "at or near a multi-year high" without
-# quantifying "near"; 10% is the operator's chosen band.
-NEAR_HIGH_FLAG_FRACTION = 0.10
 
 # AL-SEL-06: "mid-cap or above at pilot scale". Mid-cap conventionally starts
 # at $2B.
 MIN_MARKET_CAP = 2_000_000_000.0
+
+# ---------------------------------------------------------------------------
+# Continuous score curves
+#
+# Each table is (input, score) anchors, ascending by input, interpolated
+# linearly between and clamped outside. Written as tables rather than formulas
+# because the shapes are deliberately not straight lines and the anchor points
+# are the argument -- a reader can check them against the Source Brief without
+# solving for a slope.
+# ---------------------------------------------------------------------------
+
+# ST-SEL-10. Lower volatility ranks higher: the methodology's most
+# counterintuitive rule is that fat premium prices the one failure mode the
+# strategy cannot survive. Steeper above 50% than below it, so the warning band
+# still costs a name real ground without rejecting it.
+VOLATILITY_ANCHORS: tuple[tuple[float, float], ...] = (
+    (0.10, 100.0),
+    (0.50, 50.0),
+    (0.79, 1.0),
+)
+
+# ST-SEL-12. Distance below the two-year high, rewarded steeply near the high
+# and flattening out: the difference between 10% and 20% below is a materially
+# different entry, the difference between 40% and 50% is not.
+CHART_POSITION_ANCHORS: tuple[tuple[float, float], ...] = (
+    (0.00, 0.0),
+    (0.10, 40.0),
+    (0.20, 70.0),
+    (0.40, 100.0),
+)
+
+# ST-SEL-01, scored rather than merely gated: "profitable company with solid
+# cash flow" is a question of degree once the gate has answered the question of
+# sign. Operating cash flow as a share of revenue.
+#
+# The anchors are the empirical percentile curve of the 2026-08-11 universe
+# (p10 0.05, p25 0.108, median 0.188, p75 0.320, p90 0.479), frozen as
+# constants. That gives a percentile's shape -- a score means "better than
+# roughly this share of the market" -- without a percentile's cohort
+# dependence. A live percentile would move a name's score because *other* names
+# were screened, which would make week-over-week deltas meaningless.
+CASH_FLOW_MARGIN_ANCHORS: tuple[tuple[float, float], ...] = (
+    (0.00, 0.0),
+    (0.05, 10.0),
+    (0.108, 25.0),
+    (0.188, 50.0),
+    (0.320, 75.0),
+    (0.479, 90.0),
+    (0.70, 100.0),
+)
+
+# ST-SEL-06. Dividend is "preferred, not required", so this is the component
+# whose weight does the capping: a non-payer scores 0 here and is still a
+# perfectly good candidate on the other four.
+DIVIDEND_YIELD_ANCHORS: tuple[tuple[float, float], ...] = (
+    (0.0, 0.0),
+    (5.0, 100.0),
+)
+
+# ST-SEL-02, on Yahoo's 1-5 recommendation mean where 1 is strong buy.
+# Interpolating rather than bucketing costs nothing and avoids reintroducing
+# the coarseness this whole scheme exists to remove.
+ANALYST_RATING_ANCHORS: tuple[tuple[float, float], ...] = (
+    (1.0, 100.0),
+    (2.0, 75.0),
+    (3.0, 25.0),
+    (5.0, 0.0),
+)
+
+
+def piecewise(
+    value: float,
+    anchors: Sequence[tuple[float, float]],
+) -> float:
+    """Linearly interpolate `value` through an ascending anchor table.
+
+    Clamps to the end anchors' scores outside the table's range: a name at 5%
+    volatility is not better than 100, and one at 90% has already failed the
+    gate. Pure, total, and independent of every other name being scored.
+    """
+
+    if not anchors:
+        raise ValueError("piecewise needs at least one anchor")
+    if value <= anchors[0][0]:
+        return anchors[0][1]
+    for (low_input, low_score), (high_input, high_score) in zip(
+        anchors, anchors[1:]
+    ):
+        if value <= high_input:
+            span = high_input - low_input
+            if span <= 0:
+                return high_score
+            fraction = (value - low_input) / span
+            return low_score + fraction * (high_score - low_score)
+    return anchors[-1][1]
 
 # AL-SIZ-04: "two or more open or candidate positions reporting in the same week".
 EARNINGS_CLUSTER_MINIMUM = 2
@@ -133,9 +256,7 @@ class SelectionThresholds:
     max_price: float
     max_mean_rating: float
     max_single_day_move: float
-    iv_flag_above: float = IV_FLAG_ABOVE
     iv_disqualify_above: float = IV_DISQUALIFY_ABOVE
-    near_high_fraction: float = NEAR_HIGH_FLAG_FRACTION
     min_market_cap: float = MIN_MARKET_CAP
     earnings_flag_days: int = 45
 
@@ -213,6 +334,25 @@ def _instrument_label(snapshot: Mapping[str, Any]) -> str:
 # --------------------------------------------------------------------------
 
 
+def cash_flow_strength(snapshot: Mapping[str, Any]) -> float | None:
+    """ST-SEL-01's ranking half: operating cash flow as a share of revenue.
+
+    The gate answers *is it positive*; this answers *how solid*, which is the
+    other half of the same eight-word rule. A business converting 40% of revenue
+    to operating cash is a materially better multi-month hold than one
+    converting 3%, and before this the two scored identically.
+
+    None -- never 0.0 -- when revenue is missing or non-positive. A name whose
+    denominator is unknown has no margin, which is not the same as a bad one.
+    """
+
+    cash_flow = _number(_get(snapshot, "fundamentals.operating_cash_flow_ttm"))
+    revenue = _number(_get(snapshot, "fundamentals.revenue_ttm"))
+    if cash_flow is None or revenue is None or revenue <= 0:
+        return None
+    return piecewise(cash_flow / revenue, CASH_FLOW_MARGIN_ANCHORS)
+
+
 def evaluate_st_sel_01(
     snapshot: Mapping[str, Any],
     thresholds: SelectionThresholds,
@@ -220,7 +360,9 @@ def evaluate_st_sel_01(
     """ST-SEL-01 -- profitable company with solid cash flow.
 
     Assignment may become a multi-month hold; fundamental solvency is what
-    makes waiting survivable. Both measures must be positive.
+    makes waiting survivable. Both measures must be positive to clear the gate,
+    and `cash_flow_strength` ranks the survivors by how far past positive they
+    are.
     """
 
     if not has_company_fundamentals(snapshot):
@@ -239,9 +381,17 @@ def evaluate_st_sel_01(
 
     net_income = _number(_get(snapshot, "fundamentals.net_income_ttm"))
     cash_flow = _number(_get(snapshot, "fundamentals.operating_cash_flow_ttm"))
+    revenue = _number(_get(snapshot, "fundamentals.revenue_ttm"))
+    strength = cash_flow_strength(snapshot)
     observed = {
         "net_income_ttm": net_income,
         "operating_cash_flow_ttm": cash_flow,
+        "revenue_ttm": revenue,
+        "operating_cash_flow_margin": (
+            cash_flow / revenue
+            if cash_flow is not None and revenue is not None and revenue > 0
+            else None
+        ),
     }
 
     missing = [
@@ -277,6 +427,7 @@ def evaluate_st_sel_01(
                 f"{_money(cash_flow)} are both positive."
             ),
             metrics=observed,
+            score=strength,
         )
 
     if not income_ok and not cash_ok:
@@ -314,6 +465,7 @@ def evaluate_st_sel_01(
         verdict=Verdict.FLAG,
         reason=reason,
         metrics=observed,
+        score=strength,
     )
 
 
@@ -361,6 +513,11 @@ def evaluate_st_sel_10(
     failure mode the strategy cannot survive, so raw IV materially above ~50%
     is a rejection signal rather than an attraction.
 
+    Binary above 80%, continuous below it. The 50% line the Source Brief names
+    is now an anchor on the curve rather than a flag boundary: between 50% and
+    80% a name is worse, not suspect, and saying so with a number beats saying
+    it with a warning symbol on a fifth of the universe.
+
     True IV does not exist at Layer 0. When `implied_volatility` is null the
     30-day realized-vol proxy is used and the result is marked as an
     approximation -- a name disqualified on the proxy must be reported as
@@ -388,28 +545,21 @@ def evaluate_st_sel_10(
             approximation_note=IV_PROXY_NOTE,
         )
 
-    # Three bands: clear below the flag line, warn between, disqualify above.
-    if measure > thresholds.iv_disqualify_above:
-        kind, verdict = RuleKind.GATE, Verdict.FAIL
-        band = (
-            f"exceeds the {thresholds.iv_disqualify_above:.0%} disqualifying "
-            "ceiling"
+    disqualified = measure > thresholds.iv_disqualify_above
+    score = None if disqualified else piecewise(measure, VOLATILITY_ANCHORS)
+    band = (
+        f"exceeds the {thresholds.iv_disqualify_above:.0%} disqualifying ceiling"
+        if disqualified
+        else (
+            f"is within the {thresholds.iv_disqualify_above:.0%} ceiling and "
+            f"scores {score:.0f}/100 on the volatility curve"
         )
-    elif measure > thresholds.iv_flag_above:
-        kind, verdict = RuleKind.FLAG, Verdict.FLAG
-        band = (
-            f"sits between the {thresholds.iv_flag_above:.0%} warning line and "
-            f"the {thresholds.iv_disqualify_above:.0%} ceiling -- elevated but "
-            "not disqualifying"
-        )
-    else:
-        kind, verdict = RuleKind.GATE, Verdict.PASS
-        band = f"is at or below the {thresholds.iv_flag_above:.0%} warning line"
+    )
 
     return RuleResult(
         rule_id="ST-SEL-10",
-        kind=kind,
-        verdict=verdict,
+        kind=RuleKind.GATE,
+        verdict=Verdict.FAIL if disqualified else Verdict.PASS,
         reason=(
             f"{source.capitalize()} {measure:.2%} {band}"
             + (" (measured on a proxy)." if is_proxy else ".")
@@ -421,6 +571,7 @@ def evaluate_st_sel_10(
         },
         is_approximation=is_proxy,
         approximation_note=IV_PROXY_NOTE if is_proxy else None,
+        score=score,
     )
 
 
@@ -509,8 +660,11 @@ def evaluate_st_sel_02(
             metrics={"recommendation_mean": None, "analyst_opinions": opinions},
         )
 
-    # 1 = strong buy, 5 = sell: lower is stronger.
+    # 1 = strong buy, 5 = sell: lower is stronger. The configured maximum still
+    # sets the verdict for audit, but the ranking reads the curve -- "bullish or
+    # very bullish" is a spectrum, and 1.4 is not the same recommendation as 2.4.
     passed = rating <= thresholds.max_mean_rating
+    score = piecewise(rating, ANALYST_RATING_ANCHORS)
     return RuleResult(
         rule_id="ST-SEL-02",
         kind=RuleKind.SCORE,
@@ -518,9 +672,11 @@ def evaluate_st_sel_02(
         reason=(
             f"Mean analyst rating {rating:.2f} is "
             f"{'at or below' if passed else 'above'} the "
-            f"{thresholds.max_mean_rating:.2f} maximum (1=strong buy, 5=sell)."
+            f"{thresholds.max_mean_rating:.2f} maximum (1=strong buy, 5=sell); "
+            f"scores {score:.0f}/100."
         ),
         metrics={"recommendation_mean": rating, "analyst_opinions": opinions},
+        score=score,
     )
 
 
@@ -613,8 +769,11 @@ def evaluate_st_sel_05(
 def evaluate_st_sel_06(snapshot: Mapping[str, Any]) -> RuleResult:
     """ST-SEL-06 -- dividend preferred, not required.
 
-    Never a gate: the rule says preferred. A payer scores; a non-payer is a
-    valid candidate that simply loses the bonus.
+    Never a gate: the rule says preferred. A payer scores by yield; a non-payer
+    scores 0 and remains a perfectly good candidate on the other four
+    components. This is the component whose *weight* does the capping -- the
+    yield curve runs the full 0-100 like every other, and what stops a fat
+    dividend dominating the composite is that it is one fifth of it.
     """
 
     pays = _get(snapshot, "dividend.pays_dividend")
@@ -631,15 +790,26 @@ def evaluate_st_sel_06(snapshot: Mapping[str, Any]) -> RuleResult:
     yield_text = (
         f"{yield_percent:.2f}%" if yield_percent is not None else "unavailable"
     )
+    # A confirmed non-payer scores 0: that is an observation, not a data gap.
+    # A payer whose yield is missing gets None -- the rule cannot rank it.
+    if not pays:
+        score = 0.0
+    elif yield_percent is None:
+        score = None
+    else:
+        score = piecewise(yield_percent, DIVIDEND_YIELD_ANCHORS)
+
     return RuleResult(
         rule_id="ST-SEL-06",
         kind=RuleKind.SCORE,
         verdict=Verdict.PASS if pays else Verdict.FAIL,
         reason=(
             f"{'Pays' if pays else 'Does not pay'} a dividend "
-            f"(yield {yield_text}); preferred, not required."
+            f"(yield {yield_text}); preferred, not required"
+            + (f"; scores {score:.0f}/100." if score is not None else ".")
         ),
         metrics={"pays_dividend": pays, "yield_percent": yield_percent},
+        score=score,
     )
 
 
@@ -650,8 +820,14 @@ def evaluate_st_sel_12(
     """ST-SEL-12 -- do not open at or near a multi-year high.
 
     Entry point affects assignment probability independent of every other
-    filter. Flag rather than gate: a name near its high is still tradeable,
-    it is just a worse entry.
+    filter, which makes this a matter of degree throughout: a name 12% below
+    its high is a better entry than one 3% below, and both are worse than one
+    30% below. A pure gradient, with no threshold at all.
+
+    It used to flag inside a 10% band. On the 2026-08-11 universe that fired on
+    536 of 1,285 names -- with the market near highs, "near the high" is close
+    to a description of the market rather than of a name, and a warning on 42%
+    of candidates warns about nothing.
 
     Measured against the two-year high the snapshot carries. The Source Brief
     says "multi-year" and its worked example cites a three-year high, so a
@@ -667,28 +843,25 @@ def evaluate_st_sel_12(
     if below_high is None:
         return RuleResult(
             rule_id="ST-SEL-12",
-            kind=RuleKind.FLAG,
+            kind=RuleKind.SCORE,
             verdict=Verdict.CANNOT_EVALUATE,
             reason="Cannot evaluate: missing chart_position.pct_below_two_year_high.",
             metrics=observed,
         )
 
-    near_high = below_high <= thresholds.near_high_fraction
+    # A name trading at or above its two-year high yields a zero or slightly
+    # negative distance; the curve clamps both to 0, the worst entry there is.
+    score = piecewise(below_high, CHART_POSITION_ANCHORS)
     return RuleResult(
         rule_id="ST-SEL-12",
-        kind=RuleKind.FLAG,
-        verdict=Verdict.FLAG if near_high else Verdict.PASS,
+        kind=RuleKind.SCORE,
+        verdict=Verdict.PASS,
         reason=(
-            f"Price is {below_high:.2%} below the two-year high"
-            + (
-                f" -- inside the {thresholds.near_high_fraction:.0%} "
-                "near-high band; a worse entry, not a rejection."
-                if near_high
-                else f", outside the {thresholds.near_high_fraction:.0%} "
-                "near-high band."
-            )
+            f"Price is {abs(below_high):.2%} below the two-year high, "
+            f"scoring {score:.0f}/100 on the entry-point curve."
         ),
         metrics=observed,
+        score=score,
     )
 
 

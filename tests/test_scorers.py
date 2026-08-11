@@ -22,8 +22,9 @@ import unittest
 from pathlib import Path
 
 from wheel.scorers import (
+    cash_flow_strength,
+    piecewise,
     IV_PROXY_NOTE,
-    NEAR_HIGH_FLAG_FRACTION,
     ST_SEL_05_NOTE,
     evaluate_al_sel_04,
     evaluate_al_sel_06,
@@ -240,6 +241,83 @@ class StSel04PriceFloorTests(unittest.TestCase):
         )
 
 
+class PiecewiseTests(unittest.TestCase):
+    """The one primitive every continuous component is built from."""
+
+    ANCHORS = ((0.0, 0.0), (1.0, 40.0), (2.0, 70.0), (4.0, 100.0))
+
+    def test_it_returns_the_anchor_values_exactly(self) -> None:
+        for value, expected in self.ANCHORS:
+            self.assertAlmostEqual(piecewise(value, self.ANCHORS), expected)
+
+    def test_it_interpolates_linearly_between_anchors(self) -> None:
+        self.assertAlmostEqual(piecewise(0.5, self.ANCHORS), 20.0)
+        self.assertAlmostEqual(piecewise(1.5, self.ANCHORS), 55.0)
+        self.assertAlmostEqual(piecewise(3.0, self.ANCHORS), 85.0)
+
+    def test_it_clamps_rather_than_extrapolating(self) -> None:
+        """Off the end of the table is the end of the table, not a slope."""
+
+        self.assertAlmostEqual(piecewise(-99.0, self.ANCHORS), 0.0)
+        self.assertAlmostEqual(piecewise(99.0, self.ANCHORS), 100.0)
+
+    def test_a_descending_table_works_the_same_way(self) -> None:
+        descending = ((0.10, 100.0), (0.50, 50.0), (0.79, 1.0))
+        self.assertAlmostEqual(piecewise(0.30, descending), 75.0)
+        self.assertAlmostEqual(piecewise(0.01, descending), 100.0)
+        self.assertAlmostEqual(piecewise(5.0, descending), 1.0)
+
+    def test_it_is_monotonic_across_a_full_sweep(self) -> None:
+        values = [piecewise(x / 100, self.ANCHORS) for x in range(0, 500)]
+        self.assertEqual(values, sorted(values))
+
+    def test_an_empty_table_is_a_programming_error_not_a_zero(self) -> None:
+        with self.assertRaises(ValueError):
+            piecewise(1.0, ())
+
+
+class CashFlowStrengthTests(unittest.TestCase):
+    """ST-SEL-01's ranking half: how solid, once the gate has answered whether."""
+
+    def test_margin_maps_through_the_anchor_table(self) -> None:
+        document = load(EQUITY)
+        document["fundamentals"]["revenue_ttm"] = 1000.0
+        document["fundamentals"]["operating_cash_flow_ttm"] = 188.0
+        self.assertAlmostEqual(cash_flow_strength(document), 50.0)
+
+    def test_stronger_conversion_scores_higher(self) -> None:
+        document = load(EQUITY)
+        document["fundamentals"]["revenue_ttm"] = 1000.0
+        scores = []
+        for cash in (30.0, 188.0, 400.0):
+            document["fundamentals"]["operating_cash_flow_ttm"] = cash
+            scores.append(cash_flow_strength(document))
+        self.assertEqual(scores, sorted(scores))
+
+    def test_negative_cash_flow_clamps_to_zero(self) -> None:
+        document = load(EQUITY)
+        document["fundamentals"]["revenue_ttm"] = 1000.0
+        document["fundamentals"]["operating_cash_flow_ttm"] = -5000.0
+        self.assertEqual(cash_flow_strength(document), 0.0)
+
+    def test_missing_revenue_scores_none_not_zero(self) -> None:
+        """An unknown denominator is no margin, not a bad one."""
+
+        document = load(EQUITY)
+        document["fundamentals"]["revenue_ttm"] = None
+        self.assertIsNone(cash_flow_strength(document))
+
+    def test_zero_revenue_scores_none_rather_than_dividing(self) -> None:
+        document = load(EQUITY)
+        document["fundamentals"]["revenue_ttm"] = 0.0
+        self.assertIsNone(cash_flow_strength(document))
+
+    def test_an_etf_carries_no_cash_flow_score(self) -> None:
+        result = evaluate_st_sel_01(load(ETF), THRESHOLDS)
+        self.assertEqual(result.verdict, Verdict.NOT_APPLICABLE)
+        self.assertIsNone(result.score)
+
+
 class StSel10VolatilityTests(unittest.TestCase):
     def test_normal_volatility_passes_on_the_proxy(self) -> None:
         result = evaluate_st_sel_10(load(EQUITY), THRESHOLDS)
@@ -279,26 +357,44 @@ class StSel10VolatilityTests(unittest.TestCase):
             evaluate_st_sel_10(document, THRESHOLDS).verdict, Verdict.PASS
         )
 
-    def test_just_above_the_warning_line_flags_rather_than_fails(self) -> None:
+    def test_the_old_warning_band_is_now_a_score_not_a_verdict(self) -> None:
+        """50-80% used to FLAG. It costs the name points instead."""
+
         document = load(EQUITY)
-        document["volatility"]["realized_vol_30d"] = 0.5001
-        result = evaluate_st_sel_10(document, THRESHOLDS)
-        self.assertEqual(result.verdict, Verdict.FLAG)
-        self.assertEqual(result.kind, RuleKind.FLAG)
-        self.assertFalse(result.disqualifying)
+        results = []
+        for vol in (0.30, 0.5001, 0.70):
+            document["volatility"]["realized_vol_30d"] = vol
+            result = evaluate_st_sel_10(document, THRESHOLDS)
+            self.assertEqual(result.verdict, Verdict.PASS)
+            self.assertEqual(result.kind, RuleKind.GATE)
+            self.assertFalse(result.disqualifying)
+            results.append(result.score)
+        # Monotonically worse as volatility rises, with no cliff at 50%.
+        self.assertGreater(results[0], results[1])
+        self.assertGreater(results[1], results[2])
 
-    def test_flag_zone_golden_warns_without_disqualifying(self) -> None:
-        result = evaluate_st_sel_10(load(FLAG_VOL), THRESHOLDS)
-        self.assertEqual(result.verdict, Verdict.FLAG)
-        self.assertFalse(result.disqualifying)
-        self.assertIn("elevated but not disqualifying", result.reason)
+    def test_volatility_scores_follow_the_anchor_table(self) -> None:
+        document = load(EQUITY)
+        for vol, expected in ((0.05, 100.0), (0.10, 100.0), (0.50, 50.0),
+                              (0.79, 1.0)):
+            document["volatility"]["realized_vol_30d"] = vol
+            self.assertAlmostEqual(
+                evaluate_st_sel_10(document, THRESHOLDS).score, expected
+            )
 
-    def test_boundary_at_the_disqualifying_ceiling_only_flags(self) -> None:
+    def test_boundary_at_the_disqualifying_ceiling_still_passes(self) -> None:
         document = load(EQUITY)
         document["volatility"]["realized_vol_30d"] = 0.80
-        self.assertEqual(
-            evaluate_st_sel_10(document, THRESHOLDS).verdict, Verdict.FLAG
-        )
+        result = evaluate_st_sel_10(document, THRESHOLDS)
+        self.assertEqual(result.verdict, Verdict.PASS)
+        self.assertAlmostEqual(result.score, 1.0)
+
+    def test_a_disqualified_name_carries_no_score(self) -> None:
+        """It is out. A ranking number for a rejected name would be noise."""
+
+        result = evaluate_st_sel_10(load(HIGH_VOL), THRESHOLDS)
+        self.assertEqual(result.verdict, Verdict.FAIL)
+        self.assertIsNone(result.score)
 
     def test_just_above_the_disqualifying_ceiling_fails(self) -> None:
         document = load(EQUITY)
@@ -487,27 +583,41 @@ class SoftRuleTests(unittest.TestCase):
         self.assertFalse(result.disqualifying)
         self.assertIn("preferred, not required", result.reason)
 
-    def test_st_sel_12_far_from_high_passes(self) -> None:
-        result = evaluate_st_sel_12(load(EQUITY), THRESHOLDS)
-        self.assertEqual(result.verdict, Verdict.PASS)
+    def test_st_sel_12_is_a_pure_gradient_with_no_flag_left(self) -> None:
+        """It fired on 42% of the universe as a flag. Now it is a number."""
 
-    def test_st_sel_12_near_high_flags(self) -> None:
-        # MARA sits 3.2% below its two-year high, inside the 10% band.
-        result = evaluate_st_sel_12(load(FLAG_VOL), THRESHOLDS)
-        self.assertEqual(result.verdict, Verdict.FLAG)
-        self.assertEqual(result.kind, RuleKind.FLAG)
-        self.assertFalse(result.disqualifying)
+        far = evaluate_st_sel_12(load(EQUITY), THRESHOLDS)
+        near = evaluate_st_sel_12(load(FLAG_VOL), THRESHOLDS)
+        for result in (far, near):
+            self.assertEqual(result.verdict, Verdict.PASS)
+            self.assertEqual(result.kind, RuleKind.SCORE)
+            self.assertFalse(result.disqualifying)
+        # MARA sits 3.2% below its two-year high; F sits much further back.
+        self.assertGreater(far.score, near.score)
 
-    def test_st_sel_12_threshold_is_a_named_constant(self) -> None:
-        self.assertEqual(NEAR_HIGH_FLAG_FRACTION, 0.10)
-        self.assertEqual(THRESHOLDS.near_high_fraction, NEAR_HIGH_FLAG_FRACTION)
-
-    def test_st_sel_12_boundary_at_exactly_ten_percent_flags(self) -> None:
+    def test_st_sel_12_scores_follow_the_anchor_table(self) -> None:
         document = load(EQUITY)
-        document["chart_position"]["pct_below_two_year_high"] = 0.10
-        self.assertEqual(
-            evaluate_st_sel_12(document, THRESHOLDS).verdict, Verdict.FLAG
-        )
+        for below_high, expected in ((0.0, 0.0), (0.10, 40.0), (0.20, 70.0),
+                                     (0.40, 100.0), (0.90, 100.0)):
+            document["chart_position"]["pct_below_two_year_high"] = below_high
+            self.assertAlmostEqual(
+                evaluate_st_sel_12(document, THRESHOLDS).score, expected
+            )
+
+    def test_st_sel_12_above_its_high_clamps_to_zero_not_negative(self) -> None:
+        # A name trading above its two-year high yields a negative distance.
+        document = load(EQUITY)
+        document["chart_position"]["pct_below_two_year_high"] = -0.02
+        result = evaluate_st_sel_12(document, THRESHOLDS)
+        self.assertEqual(result.score, 0.0)
+        self.assertIn("2.00% below", result.reason)  # rendered unsigned
+
+    def test_st_sel_12_missing_data_scores_nothing_rather_than_zero(self) -> None:
+        document = load(EQUITY)
+        document["chart_position"]["pct_below_two_year_high"] = None
+        result = evaluate_st_sel_12(document, THRESHOLDS)
+        self.assertEqual(result.verdict, Verdict.CANNOT_EVALUATE)
+        self.assertIsNone(result.score)
 
     def test_st_ent_05_distant_earnings_pass(self) -> None:
         # F reports in 54 days, beyond the 45-day window.

@@ -30,11 +30,11 @@ def make_config(wheelops: Path) -> dict:
         },
         "account": {"net_liq": 12000, "per_name_cap": 0.25},
         "weights": {
-            "stability": 0.30,
-            "iv_proxy_quality": 0.25,
+            "volatility": 0.20,
             "chart_position": 0.20,
-            "dividend": 0.15,
-            "analyst_strength": 0.10,
+            "cash_flow_strength": 0.20,
+            "dividend": 0.20,
+            "analyst_strength": 0.20,
         },
         "thresholds": {
             "profitability": {

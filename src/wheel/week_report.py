@@ -35,18 +35,21 @@ from .snapshot_schema import resolve_field
 FITNESS_GATE_RULES = ("ST-SEL-01", "ST-SEL-04", "ST-SEL-10")
 THESIS_RULE = "AL-SEL-04"
 
-# Composite weights map config keys to the rules that carry them. Rules that
-# returned NOT_APPLICABLE or CANNOT_EVALUATE are excluded and the remaining
-# weights renormalized -- an ETF is ranked on what applies to it, not punished
-# for what does not (§4.4).
+# Composite weights map config keys to the rules that carry them. A rule whose
+# `score` is None is excluded and the remaining weights renormalized -- an ETF
+# is ranked on what applies to it, not punished for what does not (§4.4).
+#
+# ST-SEL-05 (stability) is deliberately absent: it has no continuous form, and
+# a verdict bucket mixed into a field of curves would put a 100/50/0 step back
+# into the ranking. It still runs, still renders, and still shows the operator
+# the largest single-day move; it simply does not order the list.
 COMPOSITE_WEIGHT_KEYS: Mapping[str, str] = {
-    "ST-SEL-05": "stability",
-    "ST-SEL-10": "iv_proxy_quality",
+    "ST-SEL-10": "volatility",
     "ST-SEL-12": "chart_position",
+    "ST-SEL-01": "cash_flow_strength",
     "ST-SEL-06": "dividend",
     "ST-SEL-02": "analyst_strength",
 }
-_VERDICT_POINTS = {Verdict.PASS: 100.0, Verdict.FLAG: 50.0, Verdict.FAIL: 0.0}
 
 
 def _get(document: Mapping[str, Any], dotted: str) -> Any:
@@ -81,17 +84,26 @@ def composite_score(
     results: Sequence[RuleResult],
     weights: Mapping[str, float],
 ) -> float | None:
-    """Weighted 0-100 composite over the rules that actually applied."""
+    """Weighted 0-100 composite over the rules that could rank this name.
+
+    Reads each rule's continuous `score`, not its verdict. That is the whole
+    point: five verdicts can express at most a few dozen distinct composites,
+    which is why the 2026-08-11 run tied 255 names at exactly 100 and then broke
+    those ties alphabetically.
+
+    A rule with `score is None` contributes nothing and its weight is
+    renormalized away, so an ETF is ranked on the components that govern it.
+    """
 
     by_rule = _by_rule(results)
     total_weight = 0.0
     total = 0.0
     for rule_id, weight_key in COMPOSITE_WEIGHT_KEYS.items():
         result = by_rule.get(rule_id)
-        if result is None or result.verdict not in _VERDICT_POINTS:
+        if result is None or result.score is None:
             continue
         weight = float(weights[weight_key])
-        total += _VERDICT_POINTS[result.verdict] * weight
+        total += result.score * weight
         total_weight += weight
     if total_weight <= 0:
         return None
@@ -231,8 +243,8 @@ def _vol_cell(by_rule: Mapping[str, RuleResult]) -> str:
         vol = result.metrics.get("realized_vol_30d")
     if vol is None:
         return "—"
-    text = f"{float(vol):.0%}†"
-    return f"⚠ {text}" if result.verdict is Verdict.FLAG else text
+    return f"{float(vol):.0%}†"
+
 
 def _high_cell(by_rule: Mapping[str, RuleResult]) -> str:
     result = by_rule.get("ST-SEL-12")
@@ -241,8 +253,10 @@ def _high_cell(by_rule: Mapping[str, RuleResult]) -> str:
     below = result.metrics.get("pct_below_two_year_high")
     if below is None:
         return "—"
-    text = f"{float(below):.0%} below 2y high"
-    return f"⚠ {text}" if result.verdict is Verdict.FLAG else text
+    # abs(): a name at or above its high yields a signed zero or a small
+    # negative, and "-0.00% below" is arithmetic leaking into prose. The metric
+    # itself stays signed so the snapshot keeps telling the truth.
+    return f"{abs(float(below)):.0%} below 2y high"
 
 
 def _earnings_cell(by_rule: Mapping[str, RuleResult]) -> str:
@@ -324,10 +338,11 @@ def _metric(by_rule: Mapping[str, RuleResult], rule: str, key: str) -> Any:
 def _entry_flags(name: "ScoredName") -> tuple[str, ...]:
     """Short labels for every FLAG verdict, plus the data-quality marker."""
 
+    # ST-SEL-10 and ST-SEL-12 are absent on purpose: both became continuous
+    # score components, so their old "elevated vol" / "near high" labels have
+    # no verdict left to attach to. The vol and chart columns carry the number.
     labels = {
         "ST-SEL-01": "net income/OCF split",
-        "ST-SEL-10": "elevated vol",
-        "ST-SEL-12": "near high",
         "ST-ENT-05": "earnings soon",
     }
     flags = [
@@ -387,7 +402,7 @@ def _monitored_row(entry: MonitoredEntry) -> str:
     div = f"{entry.dividend_yield:.2f}%" if entry.dividend_yield is not None else "—"
     vol = f"{entry.volatility:.0%}†" if entry.volatility is not None else "—"
     chart = (
-        f"{entry.pct_below_high:.0%} below"
+        f"{abs(entry.pct_below_high):.0%} below"
         if entry.pct_below_high is not None
         else "—"
     )

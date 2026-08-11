@@ -1,17 +1,20 @@
 {
   "F": {
     "classification": "thesis_required",
-    "composite": 100.0,
+    "composite": 60.882125032218745,
     "results": [
       {
         "is_approximation": false,
         "kind": "flag",
         "metrics": {
           "net_income_ttm": -7395999744.0,
-          "operating_cash_flow_ttm": 16947000320.0
+          "operating_cash_flow_margin": 0.09015657008683285,
+          "operating_cash_flow_ttm": 16947000320.0,
+          "revenue_ttm": 187972993024.0
         },
         "reason": "net income $-7.40B is negative but operating cash flow $16.95B is positive -- investigate one-time charges before treating this as unprofitable.",
         "rule_id": "ST-SEL-01",
+        "score": 20.38531985004298,
         "verdict": "flag"
       },
       {
@@ -22,6 +25,7 @@
         },
         "reason": "Price $13.79 meets the $10.00 floor.",
         "rule_id": "ST-SEL-04",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -32,8 +36,9 @@
           "measure_used": "30-day realized volatility",
           "realized_vol_30d": 0.2789443755587424
         },
-        "reason": "30-day realized volatility 27.89% is at or below the 50% warning line (measured on a proxy).",
+        "reason": "30-day realized volatility 27.89% is within the 80% ceiling and scores 78/100 on the volatility curve (measured on a proxy).",
         "rule_id": "ST-SEL-10",
+        "score": 77.6319530551572,
         "verdict": "pass"
       },
       {
@@ -45,6 +50,7 @@
         },
         "reason": "No thesis note exists; the name is not tradeable until one does.",
         "rule_id": "AL-SEL-04",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -56,6 +62,7 @@
         },
         "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
         "rule_id": "ST-SEL-08",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -65,8 +72,9 @@
           "analyst_opinions": 20.0,
           "recommendation_mean": 2.5
         },
-        "reason": "Mean analyst rating 2.50 is at or below the 2.50 maximum (1=strong buy, 5=sell).",
+        "reason": "Mean analyst rating 2.50 is at or below the 2.50 maximum (1=strong buy, 5=sell); scores 50/100.",
         "rule_id": "ST-SEL-02",
+        "score": 50.0,
         "verdict": "pass"
       },
       {
@@ -77,6 +85,7 @@
         },
         "reason": "Price $13.79 is within the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
         "rule_id": "ST-SEL-03",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -88,6 +97,7 @@
         },
         "reason": "Largest single-day move 13.18% is within the 15.00% limit; annualized realized volatility 37.46%.",
         "rule_id": "ST-SEL-05",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -97,19 +107,21 @@
           "pays_dividend": true,
           "yield_percent": 4.25
         },
-        "reason": "Pays a dividend (yield 4.25%); preferred, not required.",
+        "reason": "Pays a dividend (yield 4.25%); preferred, not required; scores 85/100.",
         "rule_id": "ST-SEL-06",
+        "score": 85.0,
         "verdict": "pass"
       },
       {
         "is_approximation": false,
-        "kind": "flag",
+        "kind": "score",
         "metrics": {
           "pct_below_two_year_high": 0.20928901503929045,
           "two_year_high": 17.440000534057617
         },
-        "reason": "Price is 20.93% below the two-year high, outside the 10% near-high band.",
+        "reason": "Price is 20.93% below the two-year high, scoring 71/100 on the entry-point curve.",
         "rule_id": "ST-SEL-12",
+        "score": 71.39335225589356,
         "verdict": "pass"
       },
       {
@@ -121,6 +133,7 @@
         },
         "reason": "Next earnings 2026-10-22 is 77 days out, beyond the 45-day window.",
         "rule_id": "ST-ENT-05",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -131,6 +144,7 @@
         },
         "reason": "Market cap $54.99B meets the $2.00B mid-cap floor.",
         "rule_id": "AL-SEL-06",
+        "score": null,
         "verdict": "pass"
       }
     ],
@@ -138,17 +152,20 @@
   },
   "KO": {
     "classification": "thesis_required",
-    "composite": 90.0,
+    "composite": 58.56573617250097,
     "results": [
       {
         "is_approximation": false,
         "kind": "gate",
         "metrics": {
           "net_income_ttm": 14316000256.0,
-          "operating_cash_flow_ttm": 16341999616.0
+          "operating_cash_flow_margin": 0.3259989255241134,
+          "operating_cash_flow_ttm": 16341999616.0,
+          "revenue_ttm": 50128998400.0
         },
         "reason": "TTM net income $14.32B and operating cash flow $16.34B are both positive.",
         "rule_id": "ST-SEL-01",
+        "score": 75.56593637019938,
         "verdict": "pass"
       },
       {
@@ -159,6 +176,7 @@
         },
         "reason": "Price $86.85 meets the $10.00 floor.",
         "rule_id": "ST-SEL-04",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -169,8 +187,9 @@
           "measure_used": "30-day realized volatility",
           "realized_vol_30d": 0.2824058764896345
         },
-        "reason": "30-day realized volatility 28.24% is at or below the 50% warning line (measured on a proxy).",
+        "reason": "30-day realized volatility 28.24% is within the 80% ceiling and scores 77/100 on the volatility curve (measured on a proxy).",
         "rule_id": "ST-SEL-10",
+        "score": 77.19926543879569,
         "verdict": "pass"
       },
       {
@@ -182,6 +201,7 @@
         },
         "reason": "No thesis note exists; the name is not tradeable until one does.",
         "rule_id": "AL-SEL-04",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -193,6 +213,7 @@
         },
         "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
         "rule_id": "ST-SEL-08",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -202,8 +223,9 @@
           "analyst_opinions": 23.0,
           "recommendation_mean": 1.75
         },
-        "reason": "Mean analyst rating 1.75 is at or below the 2.50 maximum (1=strong buy, 5=sell).",
+        "reason": "Mean analyst rating 1.75 is at or below the 2.50 maximum (1=strong buy, 5=sell); scores 81/100.",
         "rule_id": "ST-SEL-02",
+        "score": 81.25,
         "verdict": "pass"
       },
       {
@@ -214,6 +236,7 @@
         },
         "reason": "Price $86.85 is outside the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
         "rule_id": "ST-SEL-03",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -225,6 +248,7 @@
         },
         "reason": "Largest single-day move 5.00% is within the 15.00% limit; annualized realized volatility 18.62%.",
         "rule_id": "ST-SEL-05",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -234,20 +258,22 @@
           "pays_dividend": true,
           "yield_percent": 2.44
         },
-        "reason": "Pays a dividend (yield 2.44%); preferred, not required.",
+        "reason": "Pays a dividend (yield 2.44%); preferred, not required; scores 49/100.",
         "rule_id": "ST-SEL-06",
+        "score": 48.8,
         "verdict": "pass"
       },
       {
         "is_approximation": false,
-        "kind": "flag",
+        "kind": "score",
         "metrics": {
           "pct_below_two_year_high": 0.0250336976337744,
           "two_year_high": 89.08000183105469
         },
-        "reason": "Price is 2.50% below the two-year high -- inside the 10% near-high band; a worse entry, not a rejection.",
+        "reason": "Price is 2.50% below the two-year high, scoring 10/100 on the entry-point curve.",
         "rule_id": "ST-SEL-12",
-        "verdict": "flag"
+        "score": 10.013479053509759,
+        "verdict": "pass"
       },
       {
         "is_approximation": false,
@@ -258,6 +284,7 @@
         },
         "reason": "Next earnings 2026-10-20 is 75 days out, beyond the 45-day window.",
         "rule_id": "ST-ENT-05",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -268,6 +295,7 @@
         },
         "reason": "Market cap $373.68B meets the $2.00B mid-cap floor.",
         "rule_id": "AL-SEL-06",
+        "score": null,
         "verdict": "pass"
       }
     ],
@@ -275,17 +303,20 @@
   },
   "MARA": {
     "classification": "rejected",
-    "composite": 22.22222222222222,
+    "composite": 50.0,
     "results": [
       {
         "is_approximation": false,
         "kind": "gate",
         "metrics": {
           "net_income_ttm": -2037900032.0,
-          "operating_cash_flow_ttm": -834726016.0
+          "operating_cash_flow_margin": -0.9618620837252412,
+          "operating_cash_flow_ttm": -834726016.0,
+          "revenue_ttm": 867822976.0
         },
         "reason": "net income $-2.04B is not positive; operating cash flow $-834.7M is not positive.",
         "rule_id": "ST-SEL-01",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -296,6 +327,7 @@
         },
         "reason": "Price $10.65 meets the $10.00 floor.",
         "rule_id": "ST-SEL-04",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -308,6 +340,7 @@
         },
         "reason": "30-day realized volatility 96.39% exceeds the 80% disqualifying ceiling (measured on a proxy).",
         "rule_id": "ST-SEL-10",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -319,6 +352,7 @@
         },
         "reason": "No thesis note exists; the name is not tradeable until one does.",
         "rule_id": "AL-SEL-04",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -330,6 +364,7 @@
         },
         "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
         "rule_id": "ST-SEL-08",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -341,6 +376,7 @@
         },
         "reason": "Cannot evaluate: missing analyst.recommendation_mean.",
         "rule_id": "ST-SEL-02",
+        "score": null,
         "verdict": "cannot_evaluate"
       },
       {
@@ -351,6 +387,7 @@
         },
         "reason": "Price $10.65 is within the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
         "rule_id": "ST-SEL-03",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -362,6 +399,7 @@
         },
         "reason": "Largest single-day move 22.44% exceeds the 15.00% limit; annualized realized volatility 82.69%.",
         "rule_id": "ST-SEL-05",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -371,19 +409,21 @@
           "pays_dividend": false,
           "yield_percent": null
         },
-        "reason": "Does not pay a dividend (yield unavailable); preferred, not required.",
+        "reason": "Does not pay a dividend (yield unavailable); preferred, not required; scores 0/100.",
         "rule_id": "ST-SEL-06",
+        "score": 0.0,
         "verdict": "fail"
       },
       {
         "is_approximation": false,
-        "kind": "flag",
+        "kind": "score",
         "metrics": {
           "pct_below_two_year_high": 0.6115973752601302,
           "two_year_high": 27.420000076293945
         },
-        "reason": "Price is 61.16% below the two-year high, outside the 10% near-high band.",
+        "reason": "Price is 61.16% below the two-year high, scoring 100/100 on the entry-point curve.",
         "rule_id": "ST-SEL-12",
+        "score": 100.0,
         "verdict": "pass"
       },
       {
@@ -395,6 +435,7 @@
         },
         "reason": "Next earnings 2026-08-06 is 0 days out -- inside the 45-day window; do not open across it.",
         "rule_id": "ST-ENT-05",
+        "score": null,
         "verdict": "flag"
       },
       {
@@ -405,6 +446,7 @@
         },
         "reason": "Market cap $4.06B meets the $2.00B mid-cap floor.",
         "rule_id": "AL-SEL-06",
+        "score": null,
         "verdict": "pass"
       }
     ],
@@ -412,7 +454,7 @@
   },
   "SPY": {
     "classification": "thesis_required",
-    "composite": 88.88888888888889,
+    "composite": 39.133885903412214,
     "results": [
       {
         "is_approximation": false,
@@ -422,6 +464,7 @@
         },
         "reason": "Not applicable: ETF has no issuer fundamentals (ST-SEL-08 admits these as valid candidates).",
         "rule_id": "ST-SEL-01",
+        "score": null,
         "verdict": "not_applicable"
       },
       {
@@ -432,6 +475,7 @@
         },
         "reason": "Price $768.56 meets the $10.00 floor.",
         "rule_id": "ST-SEL-04",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -442,8 +486,9 @@
           "measure_used": "30-day realized volatility",
           "realized_vol_30d": 0.13387864773574285
         },
-        "reason": "30-day realized volatility 13.39% is at or below the 50% warning line (measured on a proxy).",
+        "reason": "30-day realized volatility 13.39% is within the 80% ceiling and scores 96/100 on the volatility curve (measured on a proxy).",
         "rule_id": "ST-SEL-10",
+        "score": 95.76516903303215,
         "verdict": "pass"
       },
       {
@@ -455,6 +500,7 @@
         },
         "reason": "No thesis note exists; the name is not tradeable until one does.",
         "rule_id": "AL-SEL-04",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -466,6 +512,7 @@
         },
         "reason": "Classified ETF: no issuer, so ST-SEL-01/02, AL-SEL-06 and ST-ENT-05 do not apply. A valid candidate, not a rejection.",
         "rule_id": "ST-SEL-08",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -476,6 +523,7 @@
         },
         "reason": "Not applicable: ETF carries no analyst consensus (ST-SEL-08).",
         "rule_id": "ST-SEL-02",
+        "score": null,
         "verdict": "not_applicable"
       },
       {
@@ -486,6 +534,7 @@
         },
         "reason": "Price $768.56 is outside the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
         "rule_id": "ST-SEL-03",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -497,6 +546,7 @@
         },
         "reason": "Largest single-day move 2.91% is within the 15.00% limit; annualized realized volatility 12.88%.",
         "rule_id": "ST-SEL-05",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -506,20 +556,22 @@
           "pays_dividend": true,
           "yield_percent": 1.01
         },
-        "reason": "Pays a dividend (yield 1.01%); preferred, not required.",
+        "reason": "Pays a dividend (yield 1.01%); preferred, not required; scores 20/100.",
         "rule_id": "ST-SEL-06",
+        "score": 20.200000000000003,
         "verdict": "pass"
       },
       {
         "is_approximation": false,
-        "kind": "flag",
+        "kind": "score",
         "metrics": {
           "pct_below_two_year_high": 0.0035912216930112754,
           "two_year_high": 771.3300170898438
         },
-        "reason": "Price is 0.36% below the two-year high -- inside the 10% near-high band; a worse entry, not a rejection.",
+        "reason": "Price is 0.36% below the two-year high, scoring 1/100 on the entry-point curve.",
         "rule_id": "ST-SEL-12",
-        "verdict": "flag"
+        "score": 1.4364886772045102,
+        "verdict": "pass"
       },
       {
         "is_approximation": false,
@@ -530,6 +582,7 @@
         },
         "reason": "Not applicable: ETF has no earnings event (ST-SEL-08 notes this as an ETF advantage).",
         "rule_id": "ST-ENT-05",
+        "score": null,
         "verdict": "not_applicable"
       },
       {
@@ -540,6 +593,7 @@
         },
         "reason": "Not applicable: ETF has no issuer market cap (ST-SEL-08).",
         "rule_id": "AL-SEL-06",
+        "score": null,
         "verdict": "not_applicable"
       }
     ],
@@ -547,17 +601,20 @@
   },
   "T": {
     "classification": "thesis_required",
-    "composite": 100.0,
+    "composite": 74.3289080653687,
     "results": [
       {
         "is_approximation": false,
         "kind": "gate",
         "metrics": {
           "net_income_ttm": 21479999488.0,
-          "operating_cash_flow_ttm": 39899000832.0
+          "operating_cash_flow_margin": 0.31357525677139425,
+          "operating_cash_flow_ttm": 39899000832.0,
+          "revenue_ttm": 127238995968.0
         },
         "reason": "TTM net income $21.48B and operating cash flow $39.90B are both positive.",
         "rule_id": "ST-SEL-01",
+        "score": 73.78319257033982,
         "verdict": "pass"
       },
       {
@@ -568,6 +625,7 @@
         },
         "reason": "Price $23.71 meets the $10.00 floor.",
         "rule_id": "ST-SEL-04",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -578,8 +636,9 @@
           "measure_used": "30-day realized volatility",
           "realized_vol_30d": 0.3483218269525681
         },
-        "reason": "30-day realized volatility 34.83% is at or below the 50% warning line (measured on a proxy).",
+        "reason": "30-day realized volatility 34.83% is within the 80% ceiling and scores 69/100 on the volatility curve (measured on a proxy).",
         "rule_id": "ST-SEL-10",
+        "score": 68.959771630929,
         "verdict": "pass"
       },
       {
@@ -591,6 +650,7 @@
         },
         "reason": "No thesis note exists; the name is not tradeable until one does.",
         "rule_id": "AL-SEL-04",
+        "score": null,
         "verdict": "fail"
       },
       {
@@ -602,6 +662,7 @@
         },
         "reason": "Classified EQUITY: issuer-backed, so the fundamental rules apply.",
         "rule_id": "ST-SEL-08",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -611,8 +672,9 @@
           "analyst_opinions": 23.0,
           "recommendation_mean": 2.04
         },
-        "reason": "Mean analyst rating 2.04 is at or below the 2.50 maximum (1=strong buy, 5=sell).",
+        "reason": "Mean analyst rating 2.04 is at or below the 2.50 maximum (1=strong buy, 5=sell); scores 73/100.",
         "rule_id": "ST-SEL-02",
+        "score": 73.0,
         "verdict": "pass"
       },
       {
@@ -623,6 +685,7 @@
         },
         "reason": "Price $23.71 is within the configured $10.00-$50.00 band (interim: AL-SEL-02's derived band needs account net_liq).",
         "rule_id": "ST-SEL-03",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -634,6 +697,7 @@
         },
         "reason": "Largest single-day move 5.13% is within the 15.00% limit; annualized realized volatility 25.04%.",
         "rule_id": "ST-SEL-05",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -643,19 +707,21 @@
           "pays_dividend": true,
           "yield_percent": 4.81
         },
-        "reason": "Pays a dividend (yield 4.81%); preferred, not required.",
+        "reason": "Pays a dividend (yield 4.81%); preferred, not required; scores 96/100.",
         "rule_id": "ST-SEL-06",
+        "score": 96.2,
         "verdict": "pass"
       },
       {
         "is_approximation": false,
-        "kind": "flag",
+        "kind": "score",
         "metrics": {
           "pct_below_two_year_high": 0.16567192041858192,
           "two_year_high": 28.41807746887207
         },
-        "reason": "Price is 16.57% below the two-year high, outside the 10% near-high band.",
+        "reason": "Price is 16.57% below the two-year high, scoring 60/100 on the entry-point curve.",
         "rule_id": "ST-SEL-12",
+        "score": 59.701576125574576,
         "verdict": "pass"
       },
       {
@@ -667,6 +733,7 @@
         },
         "reason": "Next earnings 2026-10-21 is 76 days out, beyond the 45-day window.",
         "rule_id": "ST-ENT-05",
+        "score": null,
         "verdict": "pass"
       },
       {
@@ -677,6 +744,7 @@
         },
         "reason": "Market cap $162.47B meets the $2.00B mid-cap floor.",
         "rule_id": "AL-SEL-06",
+        "score": null,
         "verdict": "pass"
       }
     ],
@@ -693,6 +761,7 @@
       },
       "reason": "No industry repeats across 5 candidates (4 distinct industries).",
       "rule_id": "AL-SIZ-03",
+      "score": null,
       "verdict": "pass"
     },
     {
@@ -705,6 +774,7 @@
       },
       "reason": "Earnings clustering (display, not a constraint) -- 2026-W43: F, KO, T.",
       "rule_id": "AL-SIZ-04",
+      "score": null,
       "verdict": "flag"
     }
   ]

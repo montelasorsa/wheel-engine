@@ -38,13 +38,16 @@ data_sources:
     initial_backoff_seconds: 2.0
     backoff_multiplier: 2.0
 
-# Composite weights total 1.00 and apply only after hard gates pass.
+# Composite weights total 1.00 and apply only after hard gates pass. Each key
+# names a continuous 0-100 curve in wheel/scorers.py, not a pass/fail bucket.
+# Equal to start: the weighting is the last thing to tune, after a ranked run
+# shows which components actually separate names.
 weights:
-  stability: 0.30
-  iv_proxy_quality: 0.25
-  chart_position: 0.20
-  dividend: 0.15
-  analyst_strength: 0.10
+  volatility: 0.20          # ST-SEL-10, inverse -- lower vol ranks higher
+  chart_position: 0.20      # ST-SEL-12, distance below the two-year high
+  cash_flow_strength: 0.20  # ST-SEL-01, operating cash flow / revenue
+  dividend: 0.20            # ST-SEL-06, yield; its weight is what caps it
+  analyst_strength: 0.20    # ST-SEL-02, on the 1-5 recommendation mean
 
 thresholds:
   profitability:

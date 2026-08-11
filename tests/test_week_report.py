@@ -17,8 +17,13 @@ from datetime import date
 from pathlib import Path
 
 from wheel.monitored import MonitoredConfig
-from wheel.scorers import SelectionThresholds, evaluate_single_ticker_rules
+from wheel.scorers import (
+    SelectionThresholds,
+    Verdict,
+    evaluate_single_ticker_rules,
+)
 from wheel.week_report import (
+    COMPOSITE_WEIGHT_KEYS,
     ScoredName,
     assignment_capacity,
     classify,
@@ -42,11 +47,11 @@ THRESHOLDS = SelectionThresholds(
     earnings_flag_days=45,
 )
 WEIGHTS = {
-    "stability": 0.30,
-    "iv_proxy_quality": 0.25,
+    "volatility": 0.20,
     "chart_position": 0.20,
-    "dividend": 0.15,
-    "analyst_strength": 0.10,
+    "cash_flow_strength": 0.20,
+    "dividend": 0.20,
+    "analyst_strength": 0.20,
 }
 RUN_DATE = date(2026, 8, 15)
 
@@ -106,24 +111,96 @@ class ClassificationTests(unittest.TestCase):
 
 
 class CompositeTests(unittest.TestCase):
-    def test_all_pass_scores_100(self) -> None:
-        name = scored(load("2026-08-15_F.json"))
-        self.assertEqual(composite_score(name.results, WEIGHTS), 100.0)
+    def test_it_is_the_weighted_mean_of_the_component_scores(self) -> None:
+        """No bucketing anywhere: the composite is arithmetic on the curves."""
 
-    def test_flags_and_fails_blend(self) -> None:
-        # MARA: ST-SEL-05 fail (16.4% move > 15% limit), ST-SEL-10 flag(50),
-        # ST-SEL-12 flag(50), ST-SEL-06 fail(0), ST-SEL-02 pass(100)
-        # -> 30*0 + 25*50 + 20*50 + 15*0 + 10*100 = 32.5 under the weights.
-        name = scored(load("2026-08-15_MARA-flagvol.json"))
-        self.assertAlmostEqual(composite_score(name.results, WEIGHTS), 32.5)
+        name = scored(load("2026-08-15_F.json"))
+        by_rule = {r.rule_id: r for r in name.results}
+        expected = sum(
+            by_rule[rule].score * WEIGHTS[key]
+            for rule, key in COMPOSITE_WEIGHT_KEYS.items()
+        ) / sum(WEIGHTS.values())
+        self.assertAlmostEqual(composite_score(name.results, WEIGHTS), expected)
+        self.assertAlmostEqual(expected, 61.464, places=3)
+
+    def test_a_better_name_on_one_component_scores_higher(self) -> None:
+        """The property that matters: the composite orders names."""
+
+        base = load("2026-08-15_F.json")
+        worse = load("2026-08-15_F.json")
+        worse["volatility"]["realized_vol_30d"] = 0.65
+        self.assertGreater(
+            composite_score(scored(base).results, WEIGHTS),
+            composite_score(scored(worse).results, WEIGHTS),
+        )
 
     def test_not_applicable_weight_is_renormalized_not_zeroed(self) -> None:
-        # SPY's analyst consensus is N/A (ETF); remaining weights renormalize:
-        # (30*100 + 25*100 + 20*50 + 15*100) / 90 = 88.9
+        # SPY is an ETF: ST-SEL-01 and ST-SEL-02 do not govern it, so it is
+        # ranked on the three components that do rather than punished for the
+        # two that cannot apply (§4.4).
         name = scored(load("2026-08-15_SPY-minimal.json"))
-        self.assertAlmostEqual(
-            composite_score(name.results, WEIGHTS), 88.888, places=2
-        )
+        by_rule = {r.rule_id: r for r in name.results}
+        self.assertIsNone(by_rule["ST-SEL-01"].score)
+        self.assertIsNone(by_rule["ST-SEL-02"].score)
+        applicable = ["ST-SEL-10", "ST-SEL-12", "ST-SEL-06"]
+        expected = sum(
+            by_rule[rule].score * WEIGHTS[COMPOSITE_WEIGHT_KEYS[rule]]
+            for rule in applicable
+        ) / sum(WEIGHTS[COMPOSITE_WEIGHT_KEYS[rule]] for rule in applicable)
+        self.assertAlmostEqual(composite_score(name.results, WEIGHTS), expected)
+
+    def test_a_name_with_nothing_scorable_returns_none_not_zero(self) -> None:
+        self.assertIsNone(composite_score([], WEIGHTS))
+
+    def test_stability_is_deliberately_outside_the_composite(self) -> None:
+        """ST-SEL-05 has no continuous form; a bucket would re-add a step."""
+
+        self.assertNotIn("ST-SEL-05", COMPOSITE_WEIGHT_KEYS)
+        name = scored(load("2026-08-15_F.json"))
+        self.assertIn("ST-SEL-05", {r.rule_id for r in name.results})
+
+
+class ScoreDistinctnessTests(unittest.TestCase):
+    """The defect this change exists to close, asserted directly.
+
+    The 2026-08-11 run produced ~30 distinct composites across 1,285 names --
+    255 tied at exactly 100 -- so the monitored tier's "top 5" was the
+    alphabetically-first five of 111 equals. Verdict buckets cannot do better
+    than a few dozen values however many rules feed them.
+    """
+
+    def test_similar_names_no_longer_collapse_onto_one_score(self) -> None:
+        composites = []
+        for index in range(60):
+            document = load("2026-08-15_F.json")
+            document["volatility"]["realized_vol_30d"] = 0.20 + index * 0.005
+            composites.append(
+                round(composite_score(scored(document).results, WEIGHTS), 9)
+            )
+        self.assertEqual(len(set(composites)), 60)
+        # Strictly ordered, so a "top 5" is a top 5 rather than five names
+        # that happened to sort first.
+        self.assertEqual(composites, sorted(composites, reverse=True))
+
+    def test_the_old_scheme_would_have_tied_all_sixty(self) -> None:
+        """Same inputs under verdict buckets: every name lands on one value."""
+
+        buckets = {Verdict.PASS: 100.0, Verdict.FLAG: 50.0, Verdict.FAIL: 0.0}
+        collapsed = set()
+        for index in range(60):
+            document = load("2026-08-15_F.json")
+            document["volatility"]["realized_vol_30d"] = 0.20 + index * 0.005
+            document["chart_position"]["pct_below_two_year_high"] = (
+                0.05 + index * 0.004
+            )
+            by_rule = {r.rule_id: r for r in scored(document).results}
+            collapsed.add(
+                tuple(
+                    buckets.get(by_rule[rule].verdict)
+                    for rule in COMPOSITE_WEIGHT_KEYS
+                )
+            )
+        self.assertEqual(len(collapsed), 1)
 
 
 class ZoneTests(unittest.TestCase):
@@ -220,18 +297,18 @@ class RenderTests(unittest.TestCase):
         self.assertIn("cleared the gates, but read these", section)
         self.assertIn("**MARA**", section)
 
-    def test_monitored_row_carries_its_flag_labels(self) -> None:
-        # MARA scores 32.5, below the default floor; drop the floor so the
-        # row renders and its flag labels can be asserted.
+    def test_monitored_row_carries_only_the_surviving_flag_labels(self) -> None:
+        """Elevated vol and near-high became scores; earnings stayed a flag."""
+
         markdown = render(
             self.names, monitored_settings=MonitoredConfig(0.0, 5, 25)
         )
-        # Thesis-backed names render bold, hence the ** in the cell.
         row = next(
             line for line in markdown.splitlines() if "MARA" in line and line.startswith("|")
         )
-        self.assertIn("elevated vol", row)
-        self.assertIn("near high", row)
+        self.assertIn("earnings soon", row)
+        self.assertNotIn("elevated vol", row)
+        self.assertNotIn("near high", row)
 
     def test_monitored_lists_fitness_cleared_names_without_a_thesis(self) -> None:
         document = load("2026-08-15_F.json")
@@ -391,8 +468,13 @@ class UniverseScaleRenderTests(unittest.TestCase):
             document["ticker"] = f"T{index:02d}"
             # Spread across zones: 10 in zone 1, 10 in zone 2, 10 beyond.
             document["price"]["current"] = [20.0, 45.0, 500.0][index % 3]
-            # Vary the score by making some fail the dividend rule.
-            document["dividend"]["pays_dividend"] = index % 2 == 0
+            # Vary the composite continuously, the way a real run does: every
+            # name gets its own volatility and entry point, so no two land on
+            # the same score and the per-zone caps actually have to choose.
+            document["volatility"]["realized_vol_30d"] = 0.15 + index * 0.004
+            document["chart_position"]["pct_below_two_year_high"] = (
+                0.30 - index * 0.002
+            )
             document["operator_gates"]["thesis_note_exists"] = index == 0
             self.names.append(scored(document))
         self.markdown = render(self.names)

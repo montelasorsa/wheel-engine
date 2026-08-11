@@ -47,11 +47,11 @@ THRESHOLDS = SelectionThresholds(
     earnings_flag_days=45,
 )
 WEIGHTS = {
-    "stability": 0.30,
-    "iv_proxy_quality": 0.25,
+    "volatility": 0.20,
     "chart_position": 0.20,
-    "dividend": 0.15,
-    "analyst_strength": 0.10,
+    "cash_flow_strength": 0.20,
+    "dividend": 0.20,
+    "analyst_strength": 0.20,
 }
 
 
@@ -69,6 +69,7 @@ def result_to_dict(result: RuleResult) -> dict:
         "reason": result.reason,
         "metrics": dict(result.metrics),
         "is_approximation": result.is_approximation,
+        "score": result.score,
     }
 
 
@@ -133,7 +134,21 @@ class LiveGoldenBaselineTests(unittest.TestCase):
         self.assertEqual(expected["T"]["classification"], "thesis_required")
         self.assertEqual(expected["KO"]["classification"], "thesis_required")
         self.assertEqual(expected["SPY"]["classification"], "thesis_required")
-        self.assertEqual(expected["T"]["composite"], 100.0)
+
+        # Continuous scoring: the four cleared names used to sit on 100 / 100 /
+        # 90 / 88.9 with the top two exactly tied. They now separate, and T --
+        # 21.5B net income on 39.9B operating cash flow, 4.81% yield, 16.6%
+        # below its two-year high -- leads on merit rather than on the alphabet.
+        composites = {
+            ticker: expected[ticker]["composite"]
+            for ticker in ("T", "F", "KO", "SPY")
+        }
+        self.assertEqual(len(set(composites.values())), 4)
+        self.assertEqual(
+            list(composites), sorted(composites, key=composites.get, reverse=True)
+        )
+        self.assertAlmostEqual(composites["T"], 74.329, places=3)
+
         # AL-SIZ-04 caught F/KO/T reporting in the same week on real data.
         cross = {r["rule_id"]: r for r in expected["_cross_candidate"]}
         self.assertEqual(cross["AL-SIZ-04"]["verdict"], "flag")
