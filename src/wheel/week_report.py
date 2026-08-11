@@ -5,8 +5,10 @@ account config). No clock, no filesystem, no network -- `screen.py` owns the
 edges. The report never recomputes a verdict; it renders what the scorers said,
 so it can never disagree with them.
 
-Five sections, per the build order (§5.4): header, thesis-required, ranked
-candidates, portfolio context, flagged/rejected.
+Five sections: header, monitored tier, ranked candidates, portfolio context,
+and a grouped flagged/rejected summary. At universe scale the last two matter
+most -- listing 150 rejected names individually is noise, while the handful
+carrying FLAG verdicts is exactly what needs a human.
 """
 
 from __future__ import annotations
@@ -15,7 +17,17 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Mapping, Sequence
 
-from .scorers import RuleResult, Verdict
+from .monitored import (
+    BEYOND_ZONE,
+    MonitoredConfig,
+    MonitoredEntry,
+    apply_movement,
+    find_exits,
+    select_monitored,
+    zone_for,
+    zone_order,
+)
+from .scorers import RuleKind, RuleResult, Verdict
 from .snapshot_schema import resolve_field
 
 # The three fitness gates; AL-SEL-04 (thesis) is deliberately separate so a
@@ -206,6 +218,10 @@ def _money(value: float) -> str:
     return f"${value:,.0f}" if abs(value) >= 100 else f"${value:,.2f}"
 
 
+def _plural(count: int, word: str) -> str:
+    return word if count == 1 else f"{word}s"
+
+
 def _vol_cell(by_rule: Mapping[str, RuleResult]) -> str:
     result = by_rule.get("ST-SEL-10")
     if result is None:
@@ -295,19 +311,112 @@ def _sort_ranked(
     )
 
 
+# ---------------------------------------------------------------------------
+# Monitored-tier assembly
+# ---------------------------------------------------------------------------
+
+
+def _metric(by_rule: Mapping[str, RuleResult], rule: str, key: str) -> Any:
+    result = by_rule.get(rule)
+    return None if result is None else result.metrics.get(key)
+
+
+def _entry_flags(name: "ScoredName") -> tuple[str, ...]:
+    """Short labels for every FLAG verdict, plus the data-quality marker."""
+
+    labels = {
+        "ST-SEL-01": "net income/OCF split",
+        "ST-SEL-10": "elevated vol",
+        "ST-SEL-12": "near high",
+        "ST-ENT-05": "earnings soon",
+    }
+    flags = [
+        labels.get(result.rule_id, result.rule_id)
+        for result in name.results
+        if result.verdict is Verdict.FLAG
+    ]
+    if data_incomplete(name.results):
+        flags.append("data_incomplete")
+    return tuple(flags)
+
+
+def build_monitored_entry(
+    name: "ScoredName",
+    *,
+    score: float,
+    ceiling: float,
+) -> MonitoredEntry:
+    by_rule = _by_rule(name.results)
+    volatility = _metric(by_rule, "ST-SEL-10", "implied_volatility")
+    if volatility is None:
+        volatility = _metric(by_rule, "ST-SEL-10", "realized_vol_30d")
+    thesis = by_rule.get(THESIS_RULE)
+    return MonitoredEntry(
+        ticker=name.ticker,
+        score=score,
+        price=name.price,
+        zone=zone_for(name.price, ceiling),
+        sector=_get(name.document, "identity.sector"),
+        dividend_yield=_get(name.document, "dividend.yield_percent"),
+        volatility=volatility,
+        pct_below_high=_metric(by_rule, "ST-SEL-12", "pct_below_two_year_high"),
+        earnings_date=_metric(by_rule, "ST-ENT-05", "next_earnings_date"),
+        thesis_backed=bool(thesis is not None and thesis.verdict is Verdict.PASS),
+        flags=_entry_flags(name),
+    )
+
+
+_MONITORED_HEADER = (
+    "| Ticker | Score | Price | Sector | Div | Vol† | Chart | Earnings | Flags |\n"
+    "|---|---|---|---|---|---|---|---|---|"
+)
+
+
+def _delta_text(entry: MonitoredEntry) -> str:
+    if entry.is_new:
+        return " **NEW**"
+    if entry.delta is None:
+        return ""
+    if abs(entry.delta) < 0.5:
+        return " —"
+    return f" {'↑' if entry.delta > 0 else '↓'}{abs(entry.delta):.0f}"
+
+
+def _monitored_row(entry: MonitoredEntry) -> str:
+    price = _money(entry.price) if entry.price is not None else "—"
+    div = f"{entry.dividend_yield:.2f}%" if entry.dividend_yield is not None else "—"
+    vol = f"{entry.volatility:.0%}†" if entry.volatility is not None else "—"
+    chart = (
+        f"{entry.pct_below_high:.0%} below"
+        if entry.pct_below_high is not None
+        else "—"
+    )
+    marker = "**" if entry.thesis_backed else ""
+    return (
+        f"| {marker}{entry.ticker}{marker} | {entry.score:.0f}{_delta_text(entry)} "
+        f"| {price} | {entry.sector or '—'} | {div} | {vol} | {chart} "
+        f"| {entry.earnings_date or '—'} | {', '.join(entry.flags) or '—'} |"
+    )
+
+
 def render_week_report(
     *,
     run_date: date,
     net_liq: float,
     per_name_cap: float,
-    scored: Sequence[ScoredName],
+    scored: Sequence["ScoredName"],
     cross_results: Sequence[RuleResult],
     position_rows: Sequence[Mapping[str, Any]],
     missing: Sequence[tuple[str, str]],
     weights: Mapping[str, float],
-) -> str:
-    """Render the five-section weekly report as markdown."""
+    monitored_settings: MonitoredConfig | None = None,
+    prior_monitored: Mapping[str, Any] | None = None,
+    run_manifest: Mapping[str, Any] | None = None,
+) -> tuple[str, dict[str, list[MonitoredEntry]]]:
+    """Render the weekly report; also return the monitored tier for the sidecar."""
 
+    settings = monitored_settings or MonitoredConfig(60.0, 5, 25)
+    manifest = run_manifest or {}
     ceiling = zone_ceiling(net_liq, per_name_cap)
     positions = open_positions(position_rows)
     capacity = assignment_capacity(positions, net_liq)
@@ -321,8 +430,20 @@ def render_week_report(
     for name in scored:
         buckets[classify(name.results)].append(name)
 
+    # The monitored tier spans everything that cleared fitness, thesis-backed
+    # or not; the thesis gate decides sort order, not membership.
+    eligible = buckets["candidate"] + buckets["thesis_required"]
+    scores = {n.ticker: composite_score(n.results, weights) for n in eligible}
+    entries = [
+        build_monitored_entry(name, score=scores[name.ticker], ceiling=ceiling)
+        for name in eligible
+        if scores[name.ticker] is not None
+    ]
+    entries = apply_movement(entries, prior_monitored)
+    kept, overflow = select_monitored(entries, settings)
+
     ranked = _sort_ranked(
-        [(n, composite_score(n.results, weights)) for n in buckets["candidate"]]
+        [(n, scores[n.ticker]) for n in buckets["candidate"]]
     )
     in_zone_rows = [(n, c) for n, c in ranked if in_zone(n.price, ceiling)]
     out_zone_rows = [(n, c) for n, c in ranked if not in_zone(n.price, ceiling)]
@@ -332,61 +453,100 @@ def render_week_report(
     # ---- 1. Header -------------------------------------------------------
     lines.append(f"# Wheel screen — {run_date.isoformat()}")
     lines.append("")
+    if manifest.get("universe_stale_warning"):
+        lines.append(f"> ⚠ {manifest['universe_stale_warning']}")
+        lines.append("")
     lines.append(
         f"- Account: net liq {_money(net_liq)} · per-name cap "
         f"{per_name_cap:.0%} · **zone ceiling {_money(ceiling)}** "
         "(Constitution §2.3 / AL-SEL-02)"
     )
     reserve = capacity["reserve_fraction"]
-    reserve_note = "meets" if reserve >= 0.50 else "**BREACHES**"
     lines.append(
-        f"- Reserve: {reserve:.0%} of net liq uncommitted — {reserve_note} "
-        "the ≥50% floor (Constitution §1.3) · open positions: "
-        f"{len(positions)}"
+        f"- Reserve: {reserve:.0%} of net liq uncommitted — "
+        f"{'meets' if reserve >= 0.50 else '**BREACHES**'} the ≥50% floor "
+        f"(Constitution §1.3) · open positions: {len(positions)}"
     )
-    lines.append(
-        f"- Screened {len(scored)} of {len(scored) + len(missing)} watchlist "
-        f"names; {len(missing)} missing (see final section)"
-    )
+    funnel = []
+    if manifest.get("universe_size"):
+        funnel.append(f"universe {manifest['universe_size']}")
+    if manifest.get("stage1_survivors") is not None:
+        funnel.append(f"stage 1 {manifest['stage1_survivors']}")
+    funnel.append(f"stage 2 {len(scored)}")
+    funnel.append(f"cleared gates {len(eligible)}")
+    funnel.append(f"monitored {sum(len(v) for v in kept.values())}")
+    lines.append("- Funnel: " + " → ".join(funnel))
     lines.append("")
 
-    # ---- 2. Thesis required ---------------------------------------------
-    lines.append("## Thesis required (AL-SEL-04)")
+    # ---- 2. Monitored ----------------------------------------------------
+    lines.append(f"## Monitored (score ≥ {settings.floor_score:.0f})")
     lines.append("")
-    if buckets["thesis_required"]:
+    if any(kept.values()):
         lines.append(
-            "Cleared every fitness filter; not tradeable until a thesis note "
-            "exists. These are the names worth writing theses for."
+            "The working watchlist ST-SEL-07 asks for, produced by the screen "
+            "rather than fed into it. **Bold** names have a thesis note and "
+            "sort first; the rest are candidates worth writing one for."
         )
-        lines.append("")
-        lines.append("| Ticker | Score | Price | Sector | Write |")
-        lines.append("|---|---|---|---|---|")
-        for name, composite in _sort_ranked(
-            [
-                (n, composite_score(n.results, weights))
-                for n in buckets["thesis_required"]
-            ]
-        ):
-            price = _money(name.price) if name.price is not None else "—"
-            sector = _get(name.document, "identity.sector") or "—"
-            composite_text = "—" if composite is None else f"{composite:.0f}"
-            lines.append(
-                f"| {name.ticker} | {composite_text} | {price} | {sector} "
-                f"| `notes/{name.ticker}.md` |"
-            )
+        for zone in sorted(kept, key=zone_order):
+            if not kept[zone]:
+                continue
+            if zone == "Zone 1":
+                heading = f"{zone} — tradeable now (≤ {_money(ceiling)})"
+            elif zone == BEYOND_ZONE:
+                heading = f"{zone} — locked (AL-SEL-03)"
+            else:
+                unlock = unlock_net_liq(
+                    min(
+                        (e.price for e in kept[zone] if e.price is not None),
+                        default=0.0,
+                    ),
+                    per_name_cap,
+                )
+                heading = (
+                    f"{zone} — locked (AL-SEL-03); nearest unlocks at "
+                    f"~{_money(unlock)}"
+                )
+            lines.append("")
+            lines.append(f"### {heading}")
+            lines.append("")
+            lines.append(_MONITORED_HEADER)
+            for entry in kept[zone]:
+                lines.append(_monitored_row(entry))
+            if overflow.get(zone):
+                lines.append("")
+                lines.append(f"*…and {overflow[zone]} more in this zone.*")
     else:
-        lines.append("None — every fitness-cleared name has a thesis note.")
+        lines.append(
+            f"No name scored at or above {settings.floor_score:.0f} this week."
+        )
+
+    exits = find_exits(
+        [e for entries in kept.values() for e in entries],
+        prior_monitored,
+        scored_now={
+            ticker: value for ticker, value in scores.items() if value is not None
+        },
+        rejected_now={
+            name.ticker: "; ".join(
+                r.rule_id for r in name.results if r.disqualifying
+            )
+            for name in buckets["rejected"]
+        },
+    )
+    if exits:
+        lines.append("")
+        lines.append("**Exits since last week**")
+        for exit_row in exits:
+            lines.append(f"- {exit_row['ticker']} — {exit_row['reason']}")
     lines.append("")
 
     # ---- 3. Ranked candidates -------------------------------------------
-    lines.append("## Ranked candidates")
+    lines.append("## Ranked candidates (thesis-backed, all gates cleared)")
     lines.append("")
     if in_zone_rows:
         lines.append(_CANDIDATE_HEADER)
         for position_index, (name, composite) in enumerate(in_zone_rows, 1):
-            lines.append(
-                _candidate_row(str(position_index), name, composite, "in")
-            )
+            lines.append(_candidate_row(str(position_index), name, composite, "in"))
     else:
         lines.append("No in-zone candidates cleared every gate this week.")
     if out_zone_rows:
@@ -434,35 +594,72 @@ def render_week_report(
     # ---- 5. Flagged / rejected ------------------------------------------
     lines.append("## Flagged / rejected")
     lines.append("")
-    empty = True
-    if buckets["rejected"]:
-        empty = False
-        lines.append("**Failed a fitness gate:**")
-        for name in sorted(buckets["rejected"], key=lambda n: n.ticker):
-            reasons = [
-                f"{r.rule_id}: {r.reason}"
-                for r in name.results
-                if r.rule_id in FITNESS_GATE_RULES and r.verdict is Verdict.FAIL
-            ]
-            lines.append(f"- **{name.ticker}** — " + " ".join(reasons))
+
+    flagged = [
+        (name, [r for r in name.results if r.verdict is Verdict.FLAG])
+        for name in eligible
+    ]
+    flagged = [(name, results) for name, results in flagged if results]
+    if flagged:
+        lines.append("**Flagged — cleared the gates, but read these:**")
+        for name, results in sorted(flagged, key=lambda pair: pair[0].ticker):
+            detail = "; ".join(f"{r.rule_id}: {r.reason}" for r in results)
+            lines.append(f"- **{name.ticker}** — {detail}")
+        lines.append("")
+
+    rejection_counts: dict[str, int] = {}
+    for name in buckets["rejected"]:
+        for result in name.results:
+            if result.disqualifying:
+                rejection_counts[result.rule_id] = (
+                    rejection_counts.get(result.rule_id, 0) + 1
+                )
+    if rejection_counts:
+        blurbs = {
+            "ST-SEL-01": "net income and cash flow both negative",
+            "ST-SEL-04": "price below the $10 floor",
+            "ST-SEL-10": "volatility above the 80% ceiling",
+            "AL-SEL-04": "no thesis note",
+        }
+        total = len(buckets["rejected"])
+        lines.append(
+            f"**Rejected — {total} {_plural(total, 'name')}, by gate.** "
+            "A name failing several gates is counted under each:"
+        )
+        for rule_id, count in sorted(rejection_counts.items()):
+            lines.append(
+                f"- {rule_id}: {count} {_plural(count, 'name')}"
+                + (f" — {blurbs[rule_id]}" if rule_id in blurbs else "")
+            )
+        lines.append("")
+
     if buckets["unevaluable"]:
-        empty = False
-        lines.append("**Could not evaluate (fail-closed, not scored):**")
-        for name in sorted(buckets["unevaluable"], key=lambda n: n.ticker):
-            reasons = [
-                f"{r.rule_id}: {r.reason}"
-                for r in name.results
-                if r.verdict is Verdict.CANNOT_EVALUATE
-            ]
-            lines.append(f"- **{name.ticker}** — " + " ".join(reasons))
+        count = len(buckets["unevaluable"])
+        lines.append(
+            f"**Could not evaluate — {count} {_plural(count, 'name')}** "
+            "(fail-closed, not scored):"
+        )
+        counts: dict[str, int] = {}
+        for name in buckets["unevaluable"]:
+            for result in name.results:
+                if result.verdict is Verdict.CANNOT_EVALUATE:
+                    counts[result.rule_id] = counts.get(result.rule_id, 0) + 1
+        for rule_id, count in sorted(counts.items()):
+            lines.append(f"- {rule_id}: {count} {_plural(count, 'name')}")
+        lines.append("")
+
     if missing:
-        empty = False
-        lines.append("**No snapshot this run:**")
-        for ticker, reason in sorted(missing):
+        lines.append(f"**Unusable snapshots — {len(missing)}:**")
+        for ticker, reason in sorted(missing)[:10]:
             lines.append(f"- **{ticker}** — {reason}")
-    if empty:
+        if len(missing) > 10:
+            lines.append(f"- …and {len(missing) - 10} more.")
+        lines.append("")
+
+    if not (flagged or rejection_counts or buckets["unevaluable"] or missing):
         lines.append("None.")
-    lines.append("")
+        lines.append("")
+
     lines.append(
         "† Volatility is the 30-day realized proxy, not implied volatility "
         "(no live IV feed at Layer 0). Chart stability shares the same "
@@ -475,4 +672,4 @@ def render_week_report(
         "instruction to trade.*"
     )
     lines.append("")
-    return "\n".join(lines)
+    return "\n".join(lines), kept

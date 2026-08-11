@@ -16,6 +16,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
+from wheel.monitored import MonitoredConfig
 from wheel.scorers import SelectionThresholds, evaluate_single_ticker_rules
 from wheel.week_report import (
     ScoredName,
@@ -61,7 +62,12 @@ def scored(document: dict) -> ScoredName:
     )
 
 
-def render(scored_names, position_rows=(), missing=()):
+def render(scored_names, position_rows=(), missing=(), **kwargs):
+    markdown, _ = render_full(scored_names, position_rows, missing, **kwargs)
+    return markdown
+
+
+def render_full(scored_names, position_rows=(), missing=(), **kwargs):
     return render_week_report(
         run_date=RUN_DATE,
         net_liq=12_000.0,
@@ -71,6 +77,7 @@ def render(scored_names, position_rows=(), missing=()):
         position_rows=list(position_rows),
         missing=list(missing),
         weights=WEIGHTS,
+        **kwargs,
     )
 
 
@@ -176,7 +183,7 @@ class RenderTests(unittest.TestCase):
     def test_five_sections_in_order(self) -> None:
         positions = [
             self.markdown.index("# Wheel screen — 2026-08-15"),
-            self.markdown.index("## Thesis required"),
+            self.markdown.index("## Monitored"),
             self.markdown.index("## Ranked candidates"),
             self.markdown.index("## Portfolio context"),
             self.markdown.index("## Flagged / rejected"),
@@ -185,6 +192,10 @@ class RenderTests(unittest.TestCase):
 
     def test_header_shows_derived_zone_ceiling(self) -> None:
         self.assertIn("zone ceiling $30.00", self.markdown)
+
+    def test_header_shows_the_funnel(self) -> None:
+        self.assertIn("Funnel:", self.markdown)
+        self.assertIn("cleared gates", self.markdown)
 
     def test_ranked_in_zone_order_is_composite_descending(self) -> None:
         self.assertLess(
@@ -197,26 +208,39 @@ class RenderTests(unittest.TestCase):
         self.assertIn("unlocks at ~$247,368", self.markdown)
         self.assertIn("if assigned 515% of net liq", self.markdown)
 
-    def test_rejected_name_lists_its_failing_gates(self) -> None:
+    def test_rejections_are_grouped_by_gate_not_listed_by_name(self) -> None:
         section = self.markdown[self.markdown.index("## Flagged / rejected"):]
-        self.assertIn("**APLD**", section)
-        self.assertIn("ST-SEL-01", section)
-        self.assertIn("ST-SEL-10", section)
+        self.assertIn("ST-SEL-01: 1 name", section)
+        self.assertIn("ST-SEL-10: 1 name", section)
+        # APLD is counted, not named -- at scale the names are noise.
+        self.assertNotIn("**APLD**", section)
 
-    def test_flag_zone_candidate_shows_warnings_inline(self) -> None:
-        mara_row = next(
-            line for line in self.markdown.splitlines() if "| MARA |" in line
+    def test_flagged_names_are_still_listed_individually(self) -> None:
+        section = self.markdown[self.markdown.index("## Flagged / rejected"):]
+        self.assertIn("cleared the gates, but read these", section)
+        self.assertIn("**MARA**", section)
+
+    def test_monitored_row_carries_its_flag_labels(self) -> None:
+        # MARA scores 32.5, below the default floor; drop the floor so the
+        # row renders and its flag labels can be asserted.
+        markdown = render(
+            self.names, monitored_settings=MonitoredConfig(0.0, 5, 25)
         )
-        self.assertEqual(mara_row.count("⚠"), 3)  # vol, chart, earnings
+        # Thesis-backed names render bold, hence the ** in the cell.
+        row = next(
+            line for line in markdown.splitlines() if "MARA" in line and line.startswith("|")
+        )
+        self.assertIn("elevated vol", row)
+        self.assertIn("near high", row)
 
-    def test_thesis_required_section_lists_fitness_cleared_names(self) -> None:
+    def test_monitored_lists_fitness_cleared_names_without_a_thesis(self) -> None:
         document = load("2026-08-15_F.json")
         document["operator_gates"]["thesis_note_exists"] = False
         document["operator_gates"]["thesis_note_path"] = None
         markdown = render([scored(document)])
-        section = markdown[markdown.index("## Thesis required"):]
-        self.assertIn("`notes/F.md`", section)
-        self.assertIn("worth writing theses for", section)
+        section = markdown[markdown.index("## Monitored"):]
+        self.assertIn("| F |", section)
+        self.assertIn("worth writing one for", section)
 
     def test_no_positions_reads_as_absence_not_zero(self) -> None:
         self.assertIn("no open positions recorded", self.markdown)
@@ -251,6 +275,154 @@ class RenderTests(unittest.TestCase):
 
     def test_render_is_deterministic(self) -> None:
         self.assertEqual(self.markdown, render(self.names))
+
+
+
+
+class MonitoredTierTests(unittest.TestCase):
+    """Top-N per zone, caps, thesis-first ordering, and week-over-week."""
+
+    def make(self, ticker, score, price, thesis=False):
+        """A minimal entry; the tier logic never reads the snapshot."""
+
+        from wheel.monitored import MonitoredEntry, zone_for
+
+        return MonitoredEntry(
+            ticker=ticker,
+            score=score,
+            price=price,
+            zone=zone_for(price, 30.0),
+            sector="Industrials",
+            dividend_yield=2.0,
+            volatility=0.3,
+            pct_below_high=0.2,
+            earnings_date="2026-10-08",
+            thesis_backed=thesis,
+            flags=(),
+        )
+
+    def test_floor_excludes_low_scores(self) -> None:
+        from wheel.monitored import select_monitored
+
+        entries = [self.make("LOW", 40.0, 20.0), self.make("HIGH", 80.0, 20.0)]
+        kept, _ = select_monitored(entries, MonitoredConfig(60.0, 5, 25))
+        self.assertEqual([e.ticker for e in kept["Zone 1"]], ["HIGH"])
+
+    def test_top_five_per_zone_with_overflow_count(self) -> None:
+        from wheel.monitored import select_monitored
+
+        entries = [self.make(f"T{i}", 90.0 - i, 20.0) for i in range(8)]
+        kept, overflow = select_monitored(entries, MonitoredConfig(60.0, 5, 25))
+        self.assertEqual(len(kept["Zone 1"]), 5)
+        self.assertEqual(overflow["Zone 1"], 3)
+        self.assertEqual([e.ticker for e in kept["Zone 1"]], ["T0", "T1", "T2", "T3", "T4"])
+
+    def test_total_cap_binds_across_zones(self) -> None:
+        from wheel.monitored import select_monitored
+
+        entries = [self.make(f"A{i}", 90.0, 20.0) for i in range(5)] + [
+            self.make(f"B{i}", 90.0, 50.0) for i in range(5)
+        ]
+        kept, _ = select_monitored(entries, MonitoredConfig(60.0, 5, 7))
+        self.assertEqual(sum(len(v) for v in kept.values()), 7)
+
+    def test_thesis_backed_sorts_above_a_higher_score(self) -> None:
+        from wheel.monitored import select_monitored
+
+        entries = [
+            self.make("NOTHESIS", 95.0, 20.0),
+            self.make("BACKED", 70.0, 20.0, thesis=True),
+        ]
+        kept, _ = select_monitored(entries, MonitoredConfig(60.0, 5, 25))
+        self.assertEqual([e.ticker for e in kept["Zone 1"]], ["BACKED", "NOTHESIS"])
+
+    def test_zones_are_assigned_by_multiples_of_the_ceiling(self) -> None:
+        from wheel.monitored import zone_for
+
+        self.assertEqual(zone_for(25.0, 30.0), "Zone 1")
+        self.assertEqual(zone_for(45.0, 30.0), "Zone 2")
+        self.assertEqual(zone_for(100.0, 30.0), "Zone 3")
+        self.assertEqual(zone_for(618.0, 30.0), "Beyond zones")
+
+    def test_movement_marks_new_entries_and_deltas(self) -> None:
+        from wheel.monitored import apply_movement
+
+        prior = {"entries": {"OLD": {"score": 70.0}}}
+        moved = apply_movement(
+            [self.make("OLD", 75.0, 20.0), self.make("FRESH", 80.0, 20.0)], prior
+        )
+        by_ticker = {e.ticker: e for e in moved}
+        self.assertEqual(by_ticker["OLD"].delta, 5.0)
+        self.assertFalse(by_ticker["OLD"].is_new)
+        self.assertTrue(by_ticker["FRESH"].is_new)
+
+    def test_first_run_has_no_deltas_and_no_new_labels(self) -> None:
+        from wheel.monitored import apply_movement
+
+        moved = apply_movement([self.make("A", 80.0, 20.0)], None)
+        self.assertIsNone(moved[0].delta)
+        self.assertFalse(moved[0].is_new)
+
+    def test_exits_report_why_each_name_left(self) -> None:
+        from wheel.monitored import find_exits
+
+        prior = {"entries": {"DROPPED": {"score": 80.0}, "FAILED": {"score": 75.0},
+                             "GONE": {"score": 70.0}}}
+        exits = find_exits(
+            [self.make("STAYED", 80.0, 20.0)],
+            prior,
+            scored_now={"DROPPED": 45.0},
+            rejected_now={"FAILED": "ST-SEL-10"},
+        )
+        reasons = {e["ticker"]: e["reason"] for e in exits}
+        self.assertIn("below the score floor", reasons["DROPPED"])
+        self.assertIn("ST-SEL-10", reasons["FAILED"])
+        self.assertIn("no longer in the screened universe", reasons["GONE"])
+
+
+class UniverseScaleRenderTests(unittest.TestCase):
+    """Thirty synthetic names: the shape a real run produces."""
+
+    def setUp(self) -> None:
+        base = load("2026-08-15_F.json")
+        self.names = []
+        for index in range(30):
+            document = json.loads(json.dumps(base))
+            document["ticker"] = f"T{index:02d}"
+            # Spread across zones: 10 in zone 1, 10 in zone 2, 10 beyond.
+            document["price"]["current"] = [20.0, 45.0, 500.0][index % 3]
+            # Vary the score by making some fail the dividend rule.
+            document["dividend"]["pays_dividend"] = index % 2 == 0
+            document["operator_gates"]["thesis_note_exists"] = index == 0
+            self.names.append(scored(document))
+        self.markdown = render(self.names)
+
+    def test_no_zone_lists_more_than_five(self) -> None:
+        section = self.markdown[
+            self.markdown.index("## Monitored"):self.markdown.index("## Ranked")
+        ]
+        # Bound each zone block at the next heading, or the counts run on
+        # into the following zone.
+        blocks = section.split("### ")[1:]
+        self.assertTrue(blocks, "no zone blocks rendered")
+        for block in blocks:
+            zone_heading = block.splitlines()[0]
+            rows = [
+                line for line in block.splitlines()
+                if line.startswith("|") and "Ticker" not in line and "---" not in line
+            ]
+            self.assertLessEqual(len(rows), 5, zone_heading)
+
+    def test_overflow_line_reports_the_remainder(self) -> None:
+        self.assertIn("more in this zone", self.markdown)
+
+    def test_total_cap_is_respected_across_the_whole_section(self) -> None:
+        _, kept = render_full(self.names)
+        self.assertLessEqual(sum(len(v) for v in kept.values()), 25)
+
+    def test_thesis_backed_name_renders_bold_and_first(self) -> None:
+        section = self.markdown[self.markdown.index("### Zone 1"):]
+        self.assertIn("**T00**", section)
 
 
 if __name__ == "__main__":

@@ -17,13 +17,19 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .config_io import load_config, wheelops_dir
+from .monitored import (
+    monitored_config_from_config,
+    read_prior_sidecar,
+    sidecar_payload,
+    write_sidecar,
+)
 from .scorers import (
     evaluate_cross_candidate_rules,
     evaluate_single_ticker_rules,
     selection_thresholds_from_config,
 )
 from .snapshot_schema import snapshot_filename, validate_snapshot
-from .week_report import ScoredName, render_week_report
+from .week_report import ScoredName, classify, render_week_report
 
 
 def read_position_rows(positions_dir: Path) -> list[dict[str, Any]]:
@@ -105,26 +111,48 @@ def run_screen(
         )
         for document in documents
     ]
-    cross_results = evaluate_cross_candidate_rules(documents)
+    position_rows = read_position_rows(wheelops / "positions")
+
+    # AL-SIZ-03/04 are scoped to names the operator is actually considering:
+    # thesis-backed candidates plus anything already held. Across 200 screened
+    # names every week clusters, and a flag that always fires is not a flag.
+    held = {
+        str(row.get("ticker") or "").strip().upper() for row in position_rows
+    }
+    considered = [
+        name.document
+        for name in scored
+        if classify(name.results) == "candidate" or name.ticker in held
+    ]
+    cross_results = evaluate_cross_candidate_rules(considered)
+
+    weeks_dir = wheelops / "weeks"
+    settings = monitored_config_from_config(config)
+    prior = read_prior_sidecar(weeks_dir, run_date.isoformat())
 
     account = config["account"]
-    markdown = render_week_report(
+    markdown, kept = render_week_report(
         run_date=run_date,
         net_liq=float(account["net_liq"]),
         per_name_cap=float(account["per_name_cap"]),
         scored=scored,
         cross_results=cross_results,
-        position_rows=read_position_rows(wheelops / "positions"),
+        position_rows=position_rows,
         missing=missing,
         weights=config["weights"],
+        monitored_settings=settings,
+        prior_monitored=prior,
+        run_manifest=read_run_manifest(wheelops, run_date),
     )
 
-    weeks_dir = wheelops / "weeks"
     weeks_dir.mkdir(parents=True, exist_ok=True)
     path = weeks_dir / f"{run_date.isoformat()}.md"
     temporary = path.with_suffix(".md.tmp")
     temporary.write_text(markdown, encoding="utf-8")
     temporary.replace(path)
+    write_sidecar(
+        weeks_dir, run_date.isoformat(), sidecar_payload(run_date.isoformat(), kept, settings)
+    )
     return path, markdown
 
 

@@ -135,7 +135,8 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 | Component | Technology | Note |
 |---|---|---|
 | Core (Layer 1) | Python package, `src/wheel/` | No external dependencies except stdlib + standard data libs |
-| Provider (Layer 0) | yfinance | Single adapter. Schwab API is the Phase 4 upgrade. |
+| Provider (Layer 0) | yfinance | Market data. Schwab API is the Phase 4 upgrade. |
+| Universe (Layer 0) | S&P 500/400/600 constituent lists | **Second source, added 2026-08-11.** Enumeration only — index membership is not a quality filter. Cached to `WheelOps/universe/`, reused stale on fetch failure with a loud warning. |
 | Data format | JSON snapshots, JSONL decisions, CSV positions, Markdown output | All human-readable, all diffable |
 | Testing | pytest, golden files | Layer 1 tests run < 1s with no network |
 | CLI | Python entry points or shell scripts in `commands/` | No web server, no Flask, no UI |
@@ -199,6 +200,10 @@ Decisions made in conversation that aren't yet in governance docs. Newest first.
 
 | Date | Decision | Rationale | Supersedes |
 |---|---|---|---|
+| 2026-08-11 | Screener sources from a broad universe (~1,500 S&P 500/400/600 names), not a hand-picked watchlist | A screener that ranks a list you already chose inverts its purpose. Index composition enumerates liquid US equities without an exchange listing feed | `watchlist` config key |
+| 2026-08-11 | Two-stage fetch: cheap scan then deep snapshot | A deep snapshot is 5 provider calls; spending it on names rejected on price alone costs ~20 min and learns nothing | Single-stage acquire |
+| 2026-08-11 | ST-SEL-01 split: only both-negative fails; one negative flags | "Profitable company with solid cash flow" is two criteria. A write-down with cash still coming in is a question, not a rejection | Single-gate ST-SEL-01 |
+| 2026-08-11 | Monitored tier replaces the thesis-required list; AL-SIZ-03/04 scoped to thesis-backed names and open positions | At 200 names every week clusters, so an unscoped flag means nothing; a full list is a phone book, not a screen | Full-list output |
 | 2026-08-06 | ST-SEL-10 split: hard gate >80% vol, flag 50-80%, pass <50% | Proxy data (realized vol) too approximate for hard rejection near the ~50% boundary; 80%+ is unambiguous on any measure | Single-threshold gate |
 | 2026-08-06 | Graceful null handling in scorers: degrade, don't crash; null ≠ zero | Missing data is a scorer problem, not a source problem; second provider doesn't fix it | FMP gap-fill argument |
 | 2026-08-06 | Legacy gates.py superseded by snapshot-contract scorers; remove in single dedicated commit after all 13 built | Two implementations during port is known state; cleanup is one atomic commit | — |

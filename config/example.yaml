@@ -89,6 +89,13 @@ thresholds:
 # ST-SEL-07: the operator's watchlist (~10 names, reviewed every few weeks).
 # Operator-edited. Tickers are never hardcoded in code.
 
+# The monitored tier is the operator's working watchlist (ST-SEL-07),
+# produced by the screener rather than fed into it.
+monitored:
+  floor_score: 60
+  max_per_zone: 5
+  total_cap: 25
+
 account:
   # AL-SEL-02 inputs. No broker link at pilot -- operator-maintained.
   # Constitution §11.2 uses $12,000 as the pilot working figure.

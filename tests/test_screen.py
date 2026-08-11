@@ -71,7 +71,7 @@ class WheelScreenTests(unittest.TestCase):
         self.assertEqual(path.read_text(encoding="utf-8"), markdown)
         for heading in (
             "# Wheel screen — 2026-08-15",
-            "## Thesis required",
+            "## Monitored",
             "## Ranked candidates",
             "## Portfolio context",
             "## Flagged / rejected",
@@ -83,7 +83,9 @@ class WheelScreenTests(unittest.TestCase):
         self.assertIn("| 1 | F |", markdown)          # in zone, top ranked
         self.assertIn("| 2 | MARA |", markdown)       # in zone, flagged
         self.assertIn("| · | SPY |", markdown)        # locked, out of zone
-        self.assertIn("**APLD**", markdown)           # rejected
+        # APLD is rejected; at scale rejections are counted by gate rather
+        # than listed by name.
+        self.assertIn("ST-SEL-01: 1 name", markdown)
         # A name with no snapshot is simply absent now: the screen enumerates
         # what Stage 2 produced rather than checking a configured list.
         self.assertNotIn("GHOST", markdown)
