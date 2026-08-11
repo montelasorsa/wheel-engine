@@ -3,8 +3,8 @@
 Stage 1 is a light scan of the whole universe -- price, market cap, sector --
 filtered by the two cheapest rules. Stage 2 fetches the full snapshot only for
 Stage 1 survivors. The split exists because a deep snapshot costs five provider
-calls: running it on 1,500 names to reject 1,300 of them on price alone would
-spend twenty minutes learning nothing.
+calls: running it on 5,000 names to reject most of them on price alone would
+spend hours learning nothing.
 
 Fetch and write only (AGENTS.md §4). The filtering rules live in
 `wheel.universe`, which is pure and provider-free; this module supplies it with
@@ -192,12 +192,17 @@ def acquire_universe(
     policy = yfinance_policy_from_config(config)
     filters = universe_filters_from_config(config)
 
-    say("STAGE 0 loading index constituents")
-    constituents, staleness = load_universe(wheelops / "universe", on=run_date)
+    say("STAGE 0 loading the CBOE options symbol directory")
+    constituents, staleness = load_universe(
+        wheelops / "universe",
+        on=run_date,
+        include=filters.include,
+        exclude=filters.exclude,
+    )
     if staleness:
         say(f"  WARNING {staleness}")
     tickers = [str(row["ticker"]) for row in constituents]
-    say(f"  UNIVERSE {len(tickers)} names")
+    say(f"  UNIVERSE {len(tickers)} names with listed options")
 
     say(f"STAGE 1 scanning {len(tickers)} names")
     rows = scan_universe(tickers, policy=policy, fetch_info=fetch_info, say=say)

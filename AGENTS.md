@@ -136,7 +136,7 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 |---|---|---|
 | Core (Layer 1) | Python package, `src/wheel/` | No external dependencies except stdlib + standard data libs |
 | Provider (Layer 0) | yfinance | Market data. Schwab API is the Phase 4 upgrade. |
-| Universe (Layer 0) | S&P 500/400/600 constituent lists | **Second source, added 2026-08-11.** Enumeration only — index membership is not a quality filter. Cached to `WheelOps/universe/`, reused stale on fetch failure with a loud warning. |
+| Universe (Layer 0) | CBOE equity options symbol directory | **Second source, added 2026-08-11.** Enumeration only — CBOE listing is not a quality filter. ~5,300 names, published daily as CSV. Cached to `WheelOps/universe/`, fetched at most once a day, reused stale on fetch failure with a loud warning. |
 | Data format | JSON snapshots, JSONL decisions, CSV positions, Markdown output | All human-readable, all diffable |
 | Testing | pytest, golden files | Layer 1 tests run < 1s with no network |
 | CLI | Python entry points or shell scripts in `commands/` | No web server, no Flask, no UI |
@@ -200,7 +200,8 @@ Decisions made in conversation that aren't yet in governance docs. Newest first.
 
 | Date | Decision | Rationale | Supersedes |
 |---|---|---|---|
-| 2026-08-11 | Screener sources from a broad universe (~1,500 S&P 500/400/600 names), not a hand-picked watchlist | A screener that ranks a list you already chose inverts its purpose. Index composition enumerates liquid US equities without an exchange listing feed | `watchlist` config key |
+| 2026-08-11 | Universe comes from the **CBOE options symbol directory**, not S&P index constituents | Index membership correlates with optionability but does not decide it, and a name without listed options cannot be wheeled at all. Measured on the 2026-08-11 run: 34 screened names had no CBOE-listed options, including the top-ranked monitored name. Universe 1,506 → 5,334 | S&P 500/400/600 scraping (moved to `legacy/universe_source_wikipedia.py`) |
+| 2026-08-11 | Screener sources from a broad universe, not a hand-picked watchlist | A screener that ranks a list you already chose inverts its purpose | `watchlist` config key |
 | 2026-08-11 | Two-stage fetch: cheap scan then deep snapshot | A deep snapshot is 5 provider calls; spending it on names rejected on price alone costs ~20 min and learns nothing | Single-stage acquire |
 | 2026-08-11 | ST-SEL-01 split: only both-negative fails; one negative flags | "Profitable company with solid cash flow" is two criteria. A write-down with cash still coming in is a question, not a rejection | Single-gate ST-SEL-01 |
 | 2026-08-11 | Monitored tier replaces the thesis-required list; AL-SIZ-03/04 scoped to thesis-backed names and open positions | At 200 names every week clusters, so an unscoped flag means nothing; a full list is a phone book, not a screen | Full-list output |

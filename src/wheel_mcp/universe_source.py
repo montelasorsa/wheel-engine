@@ -1,155 +1,190 @@
-"""Layer 0: enumerate the investable universe from index constituent lists.
+"""Layer 0: enumerate the investable universe from the CBOE options directory.
 
-The screener needs ~1,500 liquid US equities to choose from. Enumerating them
-properly needs an exchange listing feed we do not buy, so index composition is
-the pragmatic stand-in: the S&P 500 + MidCap 400 + SmallCap 600 together cover
-the large/mid/small-cap US market. **This is enumeration, not a quality
-filter** -- index membership says nothing the screener's own rules do not say
-better, and the rules still run on every name.
+The screener needs the set of names that actually have listed options, because a
+name without options cannot be wheeled at all. Index membership answers a
+different question: the S&P 500/400/600 lists this module used to scrape
+enumerate *large/mid/small-cap US companies*, which correlates with optionability
+but does not decide it. On the 2026-08-11 run that gap was concrete -- 34 names
+in the screened universe had no CBOE-listed options, including the top-ranked
+name on the monitored list.
 
-This is the project's SECOND external data source (AGENTS.md §6 named yfinance
-as the single adapter; see the §10 decision-log row). It is fetched rarely,
-cached, and reused stale on failure -- a Wikipedia table change should degrade
-the run, not block the week.
+CBOE publishes its equity and index options symbol directory daily as CSV. That
+is the authoritative statement of what CBOE lists, which is the closest free
+approximation of "what is optionable" available. **This is enumeration, not a
+quality filter** -- the screener's own rules still run on every name.
 
-Fetch and normalize only. No interpretation: the floors live in
-`wheel.universe`, which stays pure and provider-free.
+One caveat worth carrying: CBOE-listed is not the same as optionable everywhere.
+Options listed on other exchanges are fungible through the OCC, so a name absent
+from this directory may still trade options elsewhere. In practice the directory
+covers nearly everything, and the Stage 2 snapshot's `options.has_options` stays
+the per-name cross-check.
+
+This is the project's SECOND external data source (AGENTS.md §6; see the §10
+decision-log row). Fetched once a day, cached, and reused stale on failure -- a
+CBOE outage should degrade the run, not block the week.
+
+Fetch and normalize only. No interpretation: the floors live in `wheel.universe`,
+which stays pure and provider-free.
 """
 
 from __future__ import annotations
 
-from datetime import date
+import csv
+from datetime import date, timedelta
 from io import StringIO
 import json
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
-import pandas as pd
 import requests
 
-# Wikipedia returns 403 to pandas.read_html's default urllib agent, so the
-# fetch goes through requests with an identifying UA. Wikimedia's robot policy
-# asks for a contact-bearing agent string rather than a browser impersonation.
+# An identifying agent with a contact route, the same courtesy the Wikipedia
+# fetch needed. Anonymous scraping is what gets an IP blocked.
 USER_AGENT = (
     "wheel-engine/0.1 (personal options screener; "
     "https://github.com/ - contact via repo owner)"
 )
 REQUEST_TIMEOUT_SECONDS = 30
 
-
-def read_html_tables(url: str) -> list[pd.DataFrame]:
-    """Fetch one page with a proper agent and parse its tables."""
-
-    response = requests.get(
-        url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT_SECONDS
-    )
-    response.raise_for_status()
-    return pd.read_html(StringIO(response.text))
-
-# Wikipedia's index pages. Each carries a constituents table whose ticker
-# column is named differently per page, hence the per-source column hints.
-INDEX_SOURCES: tuple[dict[str, Any], ...] = (
-    {
-        "index": "sp500",
-        "url": "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-        "ticker_columns": ("Symbol", "Ticker symbol"),
-        "name_columns": ("Security", "Company"),
-        "sector_columns": ("GICS Sector",),
-    },
-    {
-        "index": "sp400",
-        "url": "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies",
-        "ticker_columns": ("Symbol", "Ticker symbol"),
-        "name_columns": ("Security", "Company"),
-        "sector_columns": ("GICS Sector",),
-    },
-    {
-        "index": "sp600",
-        "url": "https://en.wikipedia.org/wiki/List_of_S%26P_600_companies",
-        "ticker_columns": ("Symbol", "Ticker symbol"),
-        "name_columns": ("Security", "Company"),
-        "sector_columns": ("GICS Sector",),
-    },
+CBOE_DIRECTORY_URL = (
+    "https://www.cboe.com/us/options/symboldir/equity-index-options/download/"
 )
+
+# Column headings in the published file carry a leading space (" Stock Symbol"),
+# so headers are matched case- and whitespace-insensitively rather than by exact
+# key. Several spellings are listed because the heading is CBOE's to change.
+SYMBOL_COLUMNS = ("stock symbol", "symbol", "ticker")
+NAME_COLUMNS = ("company name", "name", "security")
+
+# A truncated or error response that still parses as CSV would silently shrink
+# the universe, and a smaller universe looks like a normal week. The published
+# file has carried ~5,000 symbols for years; anything under this is treated as a
+# failed fetch and falls through to the cache.
+MINIMUM_PLAUSIBLE_SYMBOLS = 1_000
 
 CACHE_GLOB = "constituents-*.json"
 
 
 class UniverseSourceError(RuntimeError):
-    """Raised when no constituent list could be obtained, cache included."""
+    """Raised when no symbol directory could be obtained, cache included."""
 
 
-def _first_matching_column(frame: pd.DataFrame, candidates: Sequence[str]) -> str | None:
-    lowered = {str(column).strip().lower(): column for column in frame.columns}
+# ---------------------------------------------------------------------------
+# Fetch
+# ---------------------------------------------------------------------------
+
+
+def directory_url(on: date) -> str:
+    """The published file for one date.
+
+    Verified to return a valid file for weekends and holidays as well as
+    trading days, so no date-walking fallback is needed.
+    """
+
+    return f"{CBOE_DIRECTORY_URL}?dt={on.isoformat()}"
+
+
+def download_symbol_directory(on: date) -> str:
+    """Fetch one day's directory as CSV text. Network only, no parsing."""
+
+    response = requests.get(
+        directory_url(on),
+        headers={"User-Agent": USER_AGENT},
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.text
+
+
+# ---------------------------------------------------------------------------
+# Pure normalization
+# ---------------------------------------------------------------------------
+
+
+def _column_index(header: Sequence[str], candidates: Sequence[str]) -> int | None:
+    lowered = [cell.strip().lower() for cell in header]
     for candidate in candidates:
-        column = lowered.get(candidate.strip().lower())
-        if column is not None:
-            return column
+        if candidate in lowered:
+            return lowered.index(candidate)
     return None
 
 
-def normalize_constituent_table(
-    frame: pd.DataFrame,
-    *,
-    index_name: str,
-    ticker_columns: Sequence[str],
-    name_columns: Sequence[str] = (),
-    sector_columns: Sequence[str] = (),
-) -> list[dict[str, Any]]:
-    """Purely reduce one scraped table to `{ticker, name, sector, index}` rows.
+def normalize_symbol_directory(csv_text: str) -> list[dict[str, Any]]:
+    """Purely reduce the published CSV to `{ticker, name}` rows.
 
-    Yahoo uses `-` where the indices use `.` for share classes (BRK.B is
-    BRK-B); normalizing here keeps the difference out of every downstream call.
+    Yahoo uses `-` where CBOE uses `.` for share classes (BRK.B is BRK-B);
+    normalizing here keeps the difference out of every downstream call. Only two
+    symbols in the published file need it, which is exactly why it would be
+    missed if it were not done centrally.
+
+    Duplicates keep their first occurrence. The file has none today; relying on
+    that would make a future duplicate a silent double-fetch.
     """
 
-    ticker_column = _first_matching_column(frame, ticker_columns)
-    if ticker_column is None:
+    rows = list(csv.reader(StringIO(csv_text)))
+    if not rows:
+        raise UniverseSourceError("Symbol directory is empty.")
+
+    header = rows[0]
+    symbol_index = _column_index(header, SYMBOL_COLUMNS)
+    if symbol_index is None:
         raise UniverseSourceError(
-            f"{index_name}: no ticker column among {list(ticker_columns)}; "
-            f"table has {list(frame.columns)[:8]}"
+            f"No symbol column among {list(SYMBOL_COLUMNS)}; "
+            f"header is {[cell.strip() for cell in header][:8]}"
         )
-    name_column = _first_matching_column(frame, name_columns)
-    sector_column = _first_matching_column(frame, sector_columns)
+    name_index = _column_index(header, NAME_COLUMNS)
 
-    rows: list[dict[str, Any]] = []
-    for _, record in frame.iterrows():
-        raw = record.get(ticker_column)
-        if not isinstance(raw, str):
-            raw = "" if raw is None or pd.isna(raw) else str(raw)
-        ticker = raw.strip().upper().replace(".", "-")
-        if not ticker:
+    seen: set[str] = set()
+    normalized: list[dict[str, Any]] = []
+    for row in rows[1:]:
+        if len(row) <= symbol_index:
             continue
-
-        def text(column: str | None) -> str | None:
-            if column is None:
-                return None
-            value = record.get(column)
-            if value is None or (not isinstance(value, str) and pd.isna(value)):
-                return None
-            value = str(value).strip()
-            return value or None
-
-        rows.append(
-            {
-                "ticker": ticker,
-                "name": text(name_column),
-                "sector": text(sector_column),
-                "index": index_name,
-            }
-        )
-    return rows
+        ticker = row[symbol_index].strip().upper().replace(".", "-")
+        if not ticker or ticker in seen:
+            continue
+        seen.add(ticker)
+        name = None
+        if name_index is not None and len(row) > name_index:
+            name = row[name_index].strip() or None
+        normalized.append({"ticker": ticker, "name": name})
+    return normalized
 
 
-def merge_constituents(
-    tables: Sequence[Sequence[Mapping[str, Any]]],
+def apply_operator_overrides(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    include: Iterable[str] = (),
+    exclude: Iterable[str] = (),
 ) -> list[dict[str, Any]]:
-    """Union the index tables, first occurrence winning, sorted by ticker."""
+    """Union `include`, drop `exclude`, sort by ticker.
 
+    `include` names are unioned here rather than left to Layer 1 so they get a
+    real Stage 1 scan -- `filter_stage1` would otherwise carry them through with
+    null price and market cap, which reaches Stage 2 but tells the operator
+    nothing. `exclude` is applied here to avoid spending a provider call on a
+    name already ruled out. `wheel.universe.filter_stage1` keeps its own copy of
+    both as the tested authority; this is the cheap pass, not the decision.
+    """
+
+    excluded = {str(symbol).strip().upper() for symbol in exclude if str(symbol).strip()}
     merged: dict[str, dict[str, Any]] = {}
-    for table in tables:
-        for row in table:
-            merged.setdefault(str(row["ticker"]), dict(row))
+    for row in rows:
+        ticker = str(row.get("ticker") or "").strip().upper()
+        if not ticker or ticker in excluded:
+            continue
+        merged.setdefault(ticker, {"ticker": ticker, "name": row.get("name")})
+
+    for symbol in include:
+        ticker = str(symbol).strip().upper()
+        if ticker and ticker not in excluded:
+            merged.setdefault(ticker, {"ticker": ticker, "name": None})
+
     return [merged[ticker] for ticker in sorted(merged)]
+
+
+# ---------------------------------------------------------------------------
+# Cache
+# ---------------------------------------------------------------------------
 
 
 def cache_path(universe_dir: str | Path, on: date) -> Path:
@@ -172,7 +207,12 @@ def write_cache(
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(
         json.dumps(
-            {"fetched_on": on.isoformat(), "count": len(rows), "constituents": list(rows)},
+            {
+                "fetched_on": on.isoformat(),
+                "source": "cboe_equity_options",
+                "count": len(rows),
+                "constituents": list(rows),
+            },
             indent=2,
         )
         + "\n",
@@ -190,73 +230,69 @@ def read_cache(path: str | Path) -> list[dict[str, Any]]:
     return [dict(row) for row in constituents]
 
 
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+
 def fetch_constituents(
     *,
-    read_html: Callable[..., list[pd.DataFrame]] = read_html_tables,
-    sources: Sequence[Mapping[str, Any]] = INDEX_SOURCES,
+    on: date,
+    download: Callable[[date], str] = download_symbol_directory,
 ) -> list[dict[str, Any]]:
-    """Fetch and merge every index table. Raises if none could be read."""
+    """Fetch and normalize the directory. Raises if the result is implausible."""
 
-    tables: list[list[dict[str, Any]]] = []
-    failures: list[str] = []
-    for source in sources:
-        try:
-            frames = read_html(source["url"])
-        except Exception as error:
-            failures.append(f"{source['index']}: {type(error).__name__}: {error}")
-            continue
-        for frame in frames:
-            try:
-                rows = normalize_constituent_table(
-                    frame,
-                    index_name=str(source["index"]),
-                    ticker_columns=source["ticker_columns"],
-                    name_columns=source.get("name_columns", ()),
-                    sector_columns=source.get("sector_columns", ()),
-                )
-            except UniverseSourceError:
-                continue  # wrong table on the page; try the next one
-            if rows:
-                tables.append(rows)
-                break
-        else:
-            failures.append(f"{source['index']}: no constituents table found")
-
-    if not tables:
+    rows = normalize_symbol_directory(download(on))
+    if len(rows) < MINIMUM_PLAUSIBLE_SYMBOLS:
         raise UniverseSourceError(
-            "No index constituents could be read. " + "; ".join(failures)
+            f"Symbol directory returned only {len(rows)} symbols, under the "
+            f"{MINIMUM_PLAUSIBLE_SYMBOLS} plausibility floor -- treating as a "
+            "failed fetch rather than screening a truncated universe."
         )
-    return merge_constituents(tables)
+    return rows
 
 
 def load_universe(
     universe_dir: str | Path,
     *,
     on: date,
-    read_html: Callable[..., list[pd.DataFrame]] = read_html_tables,
-    sources: Sequence[Mapping[str, Any]] = INDEX_SOURCES,
+    include: Iterable[str] = (),
+    exclude: Iterable[str] = (),
+    download: Callable[[date], str] = download_symbol_directory,
 ) -> tuple[list[dict[str, Any]], str | None]:
-    """Fetch constituents, caching on success and reusing stale on failure.
+    """Load the universe, fetching at most once a day, reusing stale on failure.
 
     Returns `(rows, staleness_warning)`. The warning is non-None whenever the
-    live fetch failed and a cache stood in -- it is surfaced in the run output
-    and the report header, because silently screening last month's index is
-    exactly the failure this cache could otherwise hide.
+    live fetch failed and an older cache stood in -- it is surfaced in the run
+    output and the report header, because silently screening last month's
+    directory is exactly the failure this cache could otherwise hide.
+
+    The directory is published daily and does not change intraday, so a cache
+    file already written for `on` is used without a fetch. Operator overrides
+    are applied on the way out rather than baked into the cache, so an edit to
+    `universe.include` takes effect on the next run without a refetch.
     """
 
+    today = cache_path(universe_dir, on)
+    if today.is_file():
+        rows = read_cache(today)
+        return apply_operator_overrides(rows, include=include, exclude=exclude), None
+
+    # Yesterday's file is the one CBOE has certainly finished publishing.
     try:
-        rows = fetch_constituents(read_html=read_html, sources=sources)
+        rows = fetch_constituents(on=on - timedelta(days=1), download=download)
     except Exception as error:
         cached = newest_cache(universe_dir)
         if cached is None:
             raise UniverseSourceError(
-                f"Constituent fetch failed and no cache exists: {error}"
+                f"Symbol directory fetch failed and no cache exists: {error}"
             ) from error
         rows = read_cache(cached)
-        return rows, (
-            f"STALE UNIVERSE: constituent fetch failed ({error}); reusing "
-            f"{cached.name} with {len(rows)} names."
+        return (
+            apply_operator_overrides(rows, include=include, exclude=exclude),
+            f"STALE UNIVERSE: CBOE symbol directory fetch failed ({error}); "
+            f"reusing {cached.name} with {len(rows)} names.",
         )
 
     write_cache(universe_dir, rows, on)
-    return rows, None
+    return apply_operator_overrides(rows, include=include, exclude=exclude), None

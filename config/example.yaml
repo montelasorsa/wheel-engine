@@ -15,12 +15,13 @@ paths:
   backup: /Users/montelasorsa/Library/Mobile Documents/com~apple~CloudDocs/AdVenture Labs/WheelOps-backup/
 
 # ST-SEL-07 / AL-SEL-06: the screener surfaces candidates from a broad
-# universe rather than ranking a hand-picked list. Index composition is a
-# pragmatic way to enumerate ~1,500 liquid US equities without buying an
-# exchange listing feed -- it is enumeration, NOT a quality filter. The
-# screener's own rules do the filtering.
+# universe rather than ranking a hand-picked list. The CBOE equity options
+# symbol directory enumerates every name CBOE lists options on (~5,300),
+# published daily -- the closest free answer to "what is optionable", which is
+# the question that matters, since a name without options cannot be wheeled.
+# Enumeration, NOT a quality filter: the screener's own rules do the filtering.
 universe:
-  source: us_equities_with_options
+  source: cboe_equity_options
   market_cap_floor: 2_000_000_000
   price_floor: 10
   include: [SPY, QQQ]

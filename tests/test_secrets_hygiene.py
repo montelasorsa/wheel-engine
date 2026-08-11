@@ -18,11 +18,17 @@ from pathlib import Path
 
 REPO = Path(__file__).parent.parent
 
-# `NAME=value` where value is neither empty nor an obvious placeholder. Matching
-# the assignment rather than a key shape keeps this provider-agnostic: a future
-# SCHWAB_CLIENT_SECRET is caught without editing the test.
+# Env-file `NAME=value` where the value is neither empty nor a placeholder.
+# Matching the assignment rather than a key shape keeps this provider-agnostic:
+# a future SCHWAB_CLIENT_SECRET is caught without editing the test.
+#
+# No whitespace is permitted around `=`, and the value may not open with a
+# quote or bracket. That is what separates an env assignment from Python --
+# `SECRET_ANCHORS = (...)` is a constant, not a credential, and a test that
+# cries wolf on ordinary code gets muted.
 SECRET_ASSIGNMENT = re.compile(
-    r"^\s*(?!#)([A-Z0-9_]*(?:API_KEY|SECRET|TOKEN|PASSWORD)[A-Z0-9_]*)\s*=\s*(\S+)",
+    r"^\s*(?!#)([A-Z0-9_]*(?:API_KEY|SECRET|TOKEN|PASSWORD)[A-Z0-9_]*)"
+    r"=([^\s\"'(\[{#]+)",
     re.MULTILINE,
 )
 PLACEHOLDERS = frozenset(
@@ -70,10 +76,15 @@ class SecretsHygieneTests(unittest.TestCase):
 
     def test_the_scan_would_actually_catch_one(self) -> None:
         # Guards the test itself: a rotted regex must fail here first.
-        found = SECRET_ASSIGNMENT.findall("FMP_API_KEY=abc123def\n")
-        self.assertEqual(found, [("FMP_API_KEY", "abc123def")])
+        self.assertEqual(
+            SECRET_ASSIGNMENT.findall("FMP_API_KEY=abc123def\n"),
+            [("FMP_API_KEY", "abc123def")],
+        )
         self.assertEqual(SECRET_ASSIGNMENT.findall("FMP_API_KEY=\n"), [])
         self.assertEqual(SECRET_ASSIGNMENT.findall("# FMP_API_KEY=real\n"), [])
+        # Python constants that merely contain a trigger word are not secrets.
+        self.assertEqual(SECRET_ASSIGNMENT.findall("SECRET_ANCHORS = (1, 2)\n"), [])
+        self.assertEqual(SECRET_ASSIGNMENT.findall('TOKEN_NAME = "x"\n'), [])
 
 
 if __name__ == "__main__":
