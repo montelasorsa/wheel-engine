@@ -20,7 +20,10 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+from dataclasses import replace as dataclass_replace
+
 from wheel.config_io import load_config, wheelops_dir
+from wheel.snapshot import normalize_fundamentals
 from wheel.snapshot_schema import snapshot_filename
 from wheel.universe import (
     Stage1Result,
@@ -35,12 +38,24 @@ from .universe_source import load_universe
 from .yahoo import (
     DEFAULT_REQUEST_THROTTLE,
     fetch_earnings_calendar,
+    fetch_ticker_info,
     fetch_ticker_snapshot,
     yfinance_policy_from_config,
 )
 
 SCAN_PROGRESS_EVERY = 50
 SNAPSHOT_PROGRESS_EVERY = 10
+
+
+def announce(message: str) -> None:
+    """Progress that survives redirection.
+
+    Python block-buffers stdout when it is not a tty, so an unflushed print
+    leaves a 30-minute run looking hung. Progress the operator cannot see is
+    not progress.
+    """
+
+    print(message, flush=True)
 
 
 def thesis_note_status(wheelops: Path, symbol: str) -> tuple[bool, str | None]:
@@ -54,25 +69,30 @@ def scan_universe(
     tickers: Sequence[str],
     *,
     policy: Any,
-    fetch_snapshot: Callable[..., Any],
-    say: Callable[[str], None],
+    fetch_info: Callable[..., Any] = fetch_ticker_info,
+    say: Callable[[str], None] = announce,
 ) -> list[dict[str, Any]]:
     """Stage 1 light scan: price, market cap and sector per name.
 
-    Uses the same paced fetch as Stage 2 rather than a separate batch path:
-    `Ticker.info` is where market cap and sector live, and a batched price
-    download would still leave that call per name. One code path, one throttle,
-    one place for a provider change to land.
+    Exactly ONE provider call per ticker -- `info` carries all three fields.
+    The deep five-call snapshot is Stage 2's job, and spending it here would
+    make the scan cost the same as the thing it exists to avoid.
+
+    Retries are disabled for the scan: across 1,500 names the dominant failure
+    is a delisted or renamed ticker, which is permanent, and three attempts
+    with backoff turns each one into six wasted seconds. Stage 2 keeps the
+    retry policy, where a transient failure actually costs a candidate.
     """
 
+    scan_policy = dataclass_replace(policy, max_attempts=1)
     rows: list[dict[str, Any]] = []
     errors = 0
     for index, ticker in enumerate(tickers, 1):
         try:
-            snapshot = fetch_snapshot(
-                ticker, period="5d", policy=policy, throttle=DEFAULT_REQUEST_THROTTLE
+            info = fetch_info(
+                ticker, policy=scan_policy, throttle=DEFAULT_REQUEST_THROTTLE
             )
-            fundamentals = snapshot.fundamentals
+            fundamentals = normalize_fundamentals(info or {})
             rows.append(
                 {
                     "ticker": ticker,
@@ -85,7 +105,7 @@ def scan_universe(
             errors += 1
             rows.append({"ticker": ticker, "price": None, "market_cap": None})
         if index % SCAN_PROGRESS_EVERY == 0 or index == len(tickers):
-            say(f"  SCAN {index}/{len(tickers)} scanned={len(rows)} errors={errors}")
+            say(f"  SCAN {index}/{len(tickers)} ok={len(rows) - errors} errors={errors}")
     return rows
 
 
@@ -163,7 +183,8 @@ def acquire_universe(
     fetched_at: datetime,
     fetch_snapshot: Callable[..., Any] = fetch_ticker_snapshot,
     fetch_calendar: Callable[..., Any] = fetch_earnings_calendar,
-    say: Callable[[str], None] = print,
+    fetch_info: Callable[..., Any] = fetch_ticker_info,
+    say: Callable[[str], None] = announce,
 ) -> dict[str, Any]:
     """Run both stages; return the counts the screen header reports."""
 
@@ -179,9 +200,7 @@ def acquire_universe(
     say(f"  UNIVERSE {len(tickers)} names")
 
     say(f"STAGE 1 scanning {len(tickers)} names")
-    rows = scan_universe(
-        tickers, policy=policy, fetch_snapshot=fetch_snapshot, say=say
-    )
+    rows = scan_universe(tickers, policy=policy, fetch_info=fetch_info, say=say)
     stage1: Stage1Result = filter_stage1(rows, filters)
     say(
         f"  SURVIVORS {len(stage1.survivors)} of {stage1.scanned} "

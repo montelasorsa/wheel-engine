@@ -151,6 +151,36 @@ def fetch_ticker_snapshot(
     )
 
 
+def fetch_ticker_info(
+    symbol: str,
+    *,
+    ticker_factory: Callable[[str], Any] = yf.Ticker,
+    policy: YFinanceFetchPolicy = DEFAULT_YFINANCE_POLICY,
+    throttle: RequestThrottle = DEFAULT_REQUEST_THROTTLE,
+    retry_sleeper: Callable[[float], None] = time.sleep,
+) -> Mapping[str, Any]:
+    """Fetch quote metadata only -- ONE provider call.
+
+    This is what a Stage 1 light scan needs: price, market cap and sector all
+    live in `info`. `fetch_ticker_snapshot` makes five calls, which is correct
+    for a deep snapshot and ruinous across a 1,500-name universe.
+    """
+
+    normalized_symbol = normalize_symbol(symbol)
+    backoff_seconds = policy.initial_backoff_seconds
+
+    for attempt in range(1, policy.max_attempts + 1):
+        try:
+            throttle.wait(policy.min_request_interval_seconds)
+            return ticker_factory(normalized_symbol).get_info()
+        except Exception:
+            if attempt == policy.max_attempts:
+                raise
+            retry_sleeper(backoff_seconds)
+            backoff_seconds *= policy.backoff_multiplier
+    return {}
+
+
 def fetch_earnings_calendar(
     symbol: str,
     *,
