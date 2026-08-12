@@ -122,7 +122,7 @@ class CompositeTests(unittest.TestCase):
             for rule, key in COMPOSITE_WEIGHT_KEYS.items()
         ) / sum(WEIGHTS.values())
         self.assertAlmostEqual(composite_score(name.results, WEIGHTS), expected)
-        self.assertAlmostEqual(expected, 61.464, places=3)
+        self.assertAlmostEqual(expected, 61.944, places=3)
 
     def test_a_better_name_on_one_component_scores_higher(self) -> None:
         """The property that matters: the composite orders names."""

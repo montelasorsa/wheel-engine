@@ -139,15 +139,17 @@ class LiveGoldenBaselineTests(unittest.TestCase):
         # 90 / 88.9 with the top two exactly tied. They now separate, and T --
         # 21.5B net income on 39.9B operating cash flow, 4.81% yield, 16.6%
         # below its two-year high -- leads on merit rather than on the alphabet.
+        # KO now ranks above F after the dividend curve reaches full marks at
+        # 3%; F's 4.25% no longer receives extra credit over that cap.
         composites = {
             ticker: expected[ticker]["composite"]
-            for ticker in ("T", "F", "KO", "SPY")
+            for ticker in ("T", "KO", "F", "SPY")
         }
         self.assertEqual(len(set(composites.values())), 4)
         self.assertEqual(
             list(composites), sorted(composites, key=composites.get, reverse=True)
         )
-        self.assertAlmostEqual(composites["T"], 74.329, places=3)
+        self.assertAlmostEqual(composites["T"], 75.089, places=3)
 
         # AL-SIZ-04 caught F/KO/T reporting in the same week on real data.
         cross = {r["rule_id"]: r for r in expected["_cross_candidate"]}

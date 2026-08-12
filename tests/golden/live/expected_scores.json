@@ -1,7 +1,7 @@
 {
   "F": {
     "classification": "thesis_required",
-    "composite": 60.882125032218745,
+    "composite": 63.882125032218745,
     "results": [
       {
         "is_approximation": false,
@@ -107,9 +107,9 @@
           "pays_dividend": true,
           "yield_percent": 4.25
         },
-        "reason": "Pays a dividend (yield 4.25%); preferred, not required; scores 85/100.",
+        "reason": "Pays a dividend (yield 4.25%); preferred, not required; scores 100/100.",
         "rule_id": "ST-SEL-06",
-        "score": 85.0,
+        "score": 100.0,
         "verdict": "pass"
       },
       {
@@ -152,7 +152,7 @@
   },
   "KO": {
     "classification": "thesis_required",
-    "composite": 58.56573617250097,
+    "composite": 65.07240283916764,
     "results": [
       {
         "is_approximation": false,
@@ -258,9 +258,9 @@
           "pays_dividend": true,
           "yield_percent": 2.44
         },
-        "reason": "Pays a dividend (yield 2.44%); preferred, not required; scores 49/100.",
+        "reason": "Pays a dividend (yield 2.44%); preferred, not required; scores 81/100.",
         "rule_id": "ST-SEL-06",
-        "score": 48.8,
+        "score": 81.33333333333333,
         "verdict": "pass"
       },
       {
@@ -454,7 +454,7 @@
   },
   "SPY": {
     "classification": "thesis_required",
-    "composite": 39.133885903412214,
+    "composite": 43.6227747923011,
     "results": [
       {
         "is_approximation": false,
@@ -556,9 +556,9 @@
           "pays_dividend": true,
           "yield_percent": 1.01
         },
-        "reason": "Pays a dividend (yield 1.01%); preferred, not required; scores 20/100.",
+        "reason": "Pays a dividend (yield 1.01%); preferred, not required; scores 34/100.",
         "rule_id": "ST-SEL-06",
-        "score": 20.200000000000003,
+        "score": 33.666666666666664,
         "verdict": "pass"
       },
       {
@@ -601,7 +601,7 @@
   },
   "T": {
     "classification": "thesis_required",
-    "composite": 74.3289080653687,
+    "composite": 75.08890806536868,
     "results": [
       {
         "is_approximation": false,
@@ -707,9 +707,9 @@
           "pays_dividend": true,
           "yield_percent": 4.81
         },
-        "reason": "Pays a dividend (yield 4.81%); preferred, not required; scores 96/100.",
+        "reason": "Pays a dividend (yield 4.81%); preferred, not required; scores 100/100.",
         "rule_id": "ST-SEL-06",
-        "score": 96.2,
+        "score": 100.0,
         "verdict": "pass"
       },
       {

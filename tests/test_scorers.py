@@ -23,6 +23,7 @@ from pathlib import Path
 
 from wheel.scorers import (
     cash_flow_strength,
+    DIVIDEND_FULL_MARKS_YIELD,
     piecewise,
     IV_PROXY_NOTE,
     ST_SEL_05_NOTE,
@@ -575,6 +576,22 @@ class SoftRuleTests(unittest.TestCase):
 
     def test_st_sel_06_payer_passes(self) -> None:
         self.assertEqual(evaluate_st_sel_06(load(EQUITY)).verdict, Verdict.PASS)
+
+    def test_st_sel_06_reaches_full_marks_at_three_percent(self) -> None:
+        self.assertEqual(DIVIDEND_FULL_MARKS_YIELD, 0.03)
+        document = load(EQUITY)
+        for yield_percent, expected in (
+            (0.0, 0.0),
+            (1.5, 50.0),
+            (3.0, 100.0),
+            (8.0, 100.0),
+        ):
+            with self.subTest(yield_percent=yield_percent):
+                document["dividend"]["yield_percent"] = yield_percent
+                self.assertAlmostEqual(
+                    evaluate_st_sel_06(document).score,
+                    expected,
+                )
 
     def test_st_sel_06_non_payer_is_never_disqualifying(self) -> None:
         # "Preferred, not required" -- a non-payer stays a valid candidate.

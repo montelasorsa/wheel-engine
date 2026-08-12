@@ -192,9 +192,10 @@ CASH_FLOW_MARGIN_ANCHORS: tuple[tuple[float, float], ...] = (
 # ST-SEL-06. Dividend is "preferred, not required", so this is the component
 # whose weight does the capping: a non-payer scores 0 here and is still a
 # perfectly good candidate on the other four.
+DIVIDEND_FULL_MARKS_YIELD = 0.03
 DIVIDEND_YIELD_ANCHORS: tuple[tuple[float, float], ...] = (
     (0.0, 0.0),
-    (5.0, 100.0),
+    (DIVIDEND_FULL_MARKS_YIELD, 100.0),
 )
 
 # ST-SEL-02, on Yahoo's 1-5 recommendation mean where 1 is strong buy.
@@ -797,7 +798,7 @@ def evaluate_st_sel_06(snapshot: Mapping[str, Any]) -> RuleResult:
     elif yield_percent is None:
         score = None
     else:
-        score = piecewise(yield_percent, DIVIDEND_YIELD_ANCHORS)
+        score = piecewise(yield_percent / 100.0, DIVIDEND_YIELD_ANCHORS)
 
     return RuleResult(
         rule_id="ST-SEL-06",
