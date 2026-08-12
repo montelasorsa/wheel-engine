@@ -86,11 +86,21 @@ class FallbackFiller:
     §4.4's `data_incomplete` flag still reaches the operator through Layer 1.
     """
 
-    def __init__(self, *, say: Callable[[str], None], load_key=load_fmp_api_key):
+    def __init__(
+        self,
+        *,
+        say: Callable[[str], None],
+        configured: bool = True,
+        load_key=load_fmp_api_key,
+    ):
         self.say = say
         self.filled_fields = 0
         self.filled_names: list[str] = []
         self.failures = 0
+        if not configured:
+            self._api_key = None
+            say("  FMP DISABLED by providers.fmp_enabled=false")
+            return
         try:
             self._api_key: str | None = load_key()
         except FmpConfigurationError as error:
@@ -101,15 +111,22 @@ class FallbackFiller:
     def enabled(self) -> bool:
         return self._api_key is not None
 
+    def _record_failure(self, error: Exception) -> None:
+        self.failures += 1
+        if self.failures == 1:
+            self.say(f"  FMP ERROR (first of run) {type(error).__name__}: {error}")
+
     def apply(self, document: Mapping[str, Any]) -> Mapping[str, Any]:
         if self._api_key is None:
             return document
         try:
-            filled, fields = fill_document(document, self._api_key)
+            filled, fields = fill_document(
+                document,
+                self._api_key,
+                on_request_failure=self._record_failure,
+            )
         except Exception as error:
-            self.failures += 1
-            if self.failures == 1:
-                self.say(f"  FMP ERROR (first of run) {type(error).__name__}: {error}")
+            self._record_failure(error)
             return document
         if fields:
             self.filled_fields += len(fields)
@@ -126,6 +143,17 @@ class FallbackFiller:
             "fields_filled": self.filled_fields,
             "request_failures": self.failures,
         }
+
+
+def fmp_enabled_from_config(config: Mapping[str, Any]) -> bool:
+    """Whether the bounded fallback is explicitly enabled. Defaults off."""
+
+    providers = config.get("providers")
+    return (
+        bool(providers.get("fmp_enabled", False))
+        if isinstance(providers, Mapping)
+        else False
+    )
 
 
 def scan_universe(
@@ -338,7 +366,10 @@ def acquire_universe(
         say(f"    {reason}: {len(names)}")
 
     say(f"STAGE 2 deep snapshot for {len(stage1.survivors)} survivors")
-    filler = FallbackFiller(say=say)
+    filler = FallbackFiller(
+        say=say,
+        configured=fmp_enabled_from_config(config),
+    )
     stage2 = deep_snapshot(
         stage1.survivors,
         wheelops=wheelops,

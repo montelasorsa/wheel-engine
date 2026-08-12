@@ -8,11 +8,17 @@ so once, loudly, and count the rest. Silence and abort are both wrong.
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
-from wheel_mcp.acquire import FallbackFiller
-from wheel_mcp.fmp import FmpConfigurationError
+from wheel_mcp.acquire import (
+    FallbackFiller,
+    fmp_enabled_from_config,
+    write_run_manifest,
+)
+from wheel_mcp.fmp import FmpConfigurationError, fill_document
 
 LIVE_GOLDEN = Path(__file__).parent / "golden" / "live"
 
@@ -72,6 +78,35 @@ class MissingKeyTests(unittest.TestCase):
         )
 
 
+class ConfigDisabledTests(unittest.TestCase):
+    def test_the_flag_defaults_false(self) -> None:
+        self.assertFalse(fmp_enabled_from_config({}))
+        self.assertFalse(fmp_enabled_from_config({"providers": {}}))
+        self.assertTrue(
+            fmp_enabled_from_config({"providers": {"fmp_enabled": True}})
+        )
+
+    def test_disabled_fallback_never_loads_a_key_or_calls_fill_document(self) -> None:
+        import wheel_mcp.acquire as acquire
+
+        def unexpected(*_args, **_kwargs):
+            self.fail("disabled FMP must not load a key or call fill_document")
+
+        original = acquire.fill_document
+        acquire.fill_document = unexpected
+        self.addCleanup(setattr, acquire, "fill_document", original)
+
+        filler = FallbackFiller(
+            say=lambda _message: None,
+            configured=False,
+            load_key=unexpected,
+        )
+        result = filler.apply(document_with_null_income())
+
+        self.assertIsNone(result["fundamentals"]["net_income_ttm"])
+        self.assertFalse(filler.summary()["enabled"])
+
+
 class RequestFailureTests(unittest.TestCase):
     def setUp(self) -> None:
         self.say = Say()
@@ -99,7 +134,7 @@ class RequestFailureTests(unittest.TestCase):
     def test_a_successful_fill_is_counted_and_announced(self) -> None:
         import wheel_mcp.acquire as acquire
 
-        def fake_fill(doc, _key):
+        def fake_fill(doc, _key, **_kwargs):
             filled = json.loads(json.dumps(doc))
             filled["fundamentals"]["net_income_ttm"] = 42.0
             filled["source"]["provider"] = "yfinance+fmp"
@@ -122,6 +157,43 @@ class RequestFailureTests(unittest.TestCase):
             },
         )
         self.assertIn("FMP FILLED F", self.say.joined())
+
+    def test_a_402_is_counted_in_the_run_manifest(self) -> None:
+        class RefusedResponse:
+            def raise_for_status(self):
+                raise RuntimeError("402 Payment Required")
+
+            def json(self):
+                return {}
+
+        def refused_fill(doc, key, *, on_request_failure=None):
+            return fill_document(
+                doc,
+                key,
+                http_get=lambda *_args, **_kwargs: RefusedResponse(),
+                on_request_failure=on_request_failure,
+            )
+
+        import wheel_mcp.acquire as acquire
+
+        original = acquire.fill_document
+        acquire.fill_document = refused_fill
+        self.addCleanup(setattr, acquire, "fill_document", original)
+
+        self.filler.apply(document_with_null_income())
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = write_run_manifest(
+                Path(directory),
+                date(2026, 8, 12),
+                {
+                    "stage1_rejected": {},
+                    "fetch_errors": [],
+                    "fallback": self.filler.summary(),
+                },
+            )
+            payload = json.loads(manifest.read_text())
+
+        self.assertGreater(payload["fallback"]["request_failures"], 0)
 
 
 if __name__ == "__main__":

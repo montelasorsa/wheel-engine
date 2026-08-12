@@ -256,6 +256,7 @@ def fetch_fills(
     needed: Sequence[str],
     *,
     http_get: Callable[..., Any] = requests.get,
+    on_request_failure: Callable[[FmpRequestError], None] | None = None,
 ) -> dict[str, float]:
     """Fetch values for `needed`, one request per endpoint that can serve them.
 
@@ -279,7 +280,9 @@ def fetch_fills(
             payload = fetch_endpoint(
                 endpoint, symbol, api_key, http_get=http_get
             )
-        except FmpRequestError:
+        except FmpRequestError as error:
+            if on_request_failure is not None:
+                on_request_failure(error)
             continue
         values.update(normalize_payload(payload, applicable))
     return values
@@ -290,6 +293,7 @@ def fill_document(
     api_key: str,
     *,
     http_get: Callable[..., Any] = requests.get,
+    on_request_failure: Callable[[FmpRequestError], None] | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
     """Fill a snapshot's allowlisted nulls. Returns (document, fields filled).
 
@@ -300,7 +304,13 @@ def fill_document(
     needed = missing_fields(document)
     if not needed:
         return dict(document), ()
-    fills = fetch_fills(document["ticker"], api_key, needed, http_get=http_get)
+    fills = fetch_fills(
+        document["ticker"],
+        api_key,
+        needed,
+        http_get=http_get,
+        on_request_failure=on_request_failure,
+    )
     if not fills:
         return dict(document), ()
     return merge_fill(document, fills), tuple(sorted(fills))
