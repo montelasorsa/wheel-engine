@@ -1084,7 +1084,12 @@ def evaluate_al_siz_03(
             rule_id="AL-SIZ-03",
             kind=RuleKind.FLAG,
             verdict=Verdict.CANNOT_EVALUATE,
-            reason="Cannot evaluate: no candidates supplied.",
+            reason=(
+                "No thesis-backed candidates to evaluate yet. This rule is "
+                "scoped to names the operator is actually considering -- "
+                "thesis-backed candidates plus open positions -- because "
+                "across a whole screened universe every week clusters."
+            ),
             metrics={"candidates": 0},
         )
 
@@ -1137,7 +1142,12 @@ def evaluate_al_siz_04(
             rule_id="AL-SIZ-04",
             kind=RuleKind.FLAG,
             verdict=Verdict.CANNOT_EVALUATE,
-            reason="Cannot evaluate: no candidates supplied.",
+            reason=(
+                "No thesis-backed candidates to evaluate yet. This rule is "
+                "scoped to names the operator is actually considering -- "
+                "thesis-backed candidates plus open positions -- because "
+                "across a whole screened universe every week clusters."
+            ),
             metrics={"candidates": 0},
         )
 

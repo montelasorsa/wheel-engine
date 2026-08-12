@@ -35,6 +35,11 @@ from .snapshot_schema import resolve_field
 FITNESS_GATE_RULES = ("ST-SEL-01", "ST-SEL-04", "ST-SEL-10")
 THESIS_RULE = "AL-SEL-04"
 
+# How many ST-SEL-01 split flags to list by name before collapsing to a count.
+# Enough to work through in a sitting; past that it is a research backlog, not
+# a to-do list, and the count is the more useful fact.
+SPLIT_FLAG_LISTING_CAP = 20
+
 # Composite weights map config keys to the rules that carry them. A rule whose
 # `score` is None is excluded and the remaining weights renormalized -- an ETF
 # is ranked on what applies to it, not punished for what does not (§4.4).
@@ -330,6 +335,11 @@ def _sort_ranked(
 # ---------------------------------------------------------------------------
 
 
+def _is_thesis_backed(name: "ScoredName") -> bool:
+    thesis = _by_rule(name.results).get(THESIS_RULE)
+    return thesis is not None and thesis.verdict is Verdict.PASS
+
+
 def _metric(by_rule: Mapping[str, RuleResult], rule: str, key: str) -> Any:
     result = by_rule.get(rule)
     return None if result is None else result.metrics.get(key)
@@ -491,6 +501,16 @@ def render_week_report(
     funnel.append(f"cleared gates {len(eligible)}")
     funnel.append(f"monitored {sum(len(v) for v in kept.values())}")
     lines.append("- Funnel: " + " → ".join(funnel))
+
+    # Stated once, here, rather than as a rejection count for every name in the
+    # universe. AL-SEL-04 is what promotes a screened name to a tradeable one,
+    # so its absence is a backlog, not a verdict.
+    thesis_backed = sum(1 for name in eligible if _is_thesis_backed(name))
+    lines.append(
+        f"- Thesis notes: {thesis_backed} of {len(eligible)} gate-cleared "
+        f"{_plural(len(eligible), 'name')}. Write `notes/<TICKER>.md` to "
+        "promote one (AL-SEL-04)."
+    )
     lines.append("")
 
     # ---- 2. Monitored ----------------------------------------------------
@@ -610,22 +630,39 @@ def render_week_report(
     lines.append("## Flagged / rejected")
     lines.append("")
 
-    flagged = [
-        (name, [r for r in name.results if r.verdict is Verdict.FLAG])
+    # Only the split flag is listed by name. It is the one verdict where the
+    # data cannot decide: a write-down with cash still coming in and a business
+    # that has stopped converting profit look identical until someone reads the
+    # filing. Everything else is a number in a column.
+    split_flagged = [
+        (name, result)
         for name in eligible
+        for result in name.results
+        if result.rule_id == "ST-SEL-01" and result.verdict is Verdict.FLAG
     ]
-    flagged = [(name, results) for name, results in flagged if results]
-    if flagged:
-        lines.append("**Flagged — cleared the gates, but read these:**")
-        for name, results in sorted(flagged, key=lambda pair: pair[0].ticker):
-            detail = "; ".join(f"{r.rule_id}: {r.reason}" for r in results)
-            lines.append(f"- **{name.ticker}** — {detail}")
+    if split_flagged:
+        total = len(split_flagged)
+        lines.append(
+            f"**ST-SEL-01 split — {total} {_plural(total, 'name')} needing a "
+            "human.** Net income and operating cash flow disagree in sign; "
+            "the rule cannot tell a one-time charge from a failing business:"
+        )
+        for name, result in sorted(split_flagged, key=lambda pair: pair[0].ticker)[
+            : SPLIT_FLAG_LISTING_CAP
+        ]:
+            lines.append(f"- **{name.ticker}** — {result.reason}")
+        if total > SPLIT_FLAG_LISTING_CAP:
+            lines.append(f"- …and {total - SPLIT_FLAG_LISTING_CAP} more.")
         lines.append("")
 
+    # AL-SEL-04 is excluded on purpose. It is a promotion gate, not a fitness
+    # gate: with no thesis notes written it is true of every name in the
+    # universe, so counting it reported "100 rejected — no thesis note" for a
+    # reason that rejected nobody. The header's thesis line says it once.
     rejection_counts: dict[str, int] = {}
     for name in buckets["rejected"]:
         for result in name.results:
-            if result.disqualifying:
+            if result.disqualifying and result.rule_id != THESIS_RULE:
                 rejection_counts[result.rule_id] = (
                     rejection_counts.get(result.rule_id, 0) + 1
                 )
@@ -634,7 +671,6 @@ def render_week_report(
             "ST-SEL-01": "net income and cash flow both negative",
             "ST-SEL-04": "price below the $10 floor",
             "ST-SEL-10": "volatility above the 80% ceiling",
-            "AL-SEL-04": "no thesis note",
         }
         total = len(buckets["rejected"])
         lines.append(
@@ -671,7 +707,9 @@ def render_week_report(
             lines.append(f"- …and {len(missing) - 10} more.")
         lines.append("")
 
-    if not (flagged or rejection_counts or buckets["unevaluable"] or missing):
+    if not (
+        split_flagged or rejection_counts or buckets["unevaluable"] or missing
+    ):
         lines.append("None.")
         lines.append("")
 

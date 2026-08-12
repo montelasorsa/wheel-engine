@@ -24,6 +24,7 @@ from wheel.scorers import (
 )
 from wheel.week_report import (
     COMPOSITE_WEIGHT_KEYS,
+    SPLIT_FLAG_LISTING_CAP,
     ScoredName,
     assignment_capacity,
     classify,
@@ -292,10 +293,53 @@ class RenderTests(unittest.TestCase):
         # APLD is counted, not named -- at scale the names are noise.
         self.assertNotIn("**APLD**", section)
 
-    def test_flagged_names_are_still_listed_individually(self) -> None:
+    def test_only_the_split_flag_is_listed_by_name(self) -> None:
+        """795 of 864 lines were per-name FLAG listings. Now one flag qualifies.
+
+        ST-SEL-01's split is the one verdict the data cannot settle -- a
+        write-down with cash still coming in and a business that has stopped
+        converting profit look identical until a human reads the filing.
+        Earnings proximity and the old vol/chart flags are numbers in columns.
+        """
+
+        document = load("2026-08-15_F.json")
+        document["fundamentals"]["net_income_ttm"] = -1_000.0
+        document["fundamentals"]["operating_cash_flow_ttm"] = 5_000.0
+        section = render([scored(document)])
+        section = section[section.index("## Flagged / rejected"):]
+        self.assertIn("ST-SEL-01 split", section)
+        self.assertIn("**F**", section)
+        self.assertIn("investigate one-time charges", section)
+
+    def test_an_earnings_flag_alone_never_lists_a_name(self) -> None:
         section = self.markdown[self.markdown.index("## Flagged / rejected"):]
-        self.assertIn("cleared the gates, but read these", section)
-        self.assertIn("**MARA**", section)
+        self.assertNotIn("ST-SEL-01 split", section)
+        self.assertNotIn("**MARA**", section)
+
+    def test_the_split_listing_is_capped_with_a_remainder_line(self) -> None:
+        names = []
+        for index in range(SPLIT_FLAG_LISTING_CAP + 7):
+            document = load("2026-08-15_F.json")
+            document["ticker"] = f"S{index:02d}"
+            document["fundamentals"]["net_income_ttm"] = -1_000.0
+            document["fundamentals"]["operating_cash_flow_ttm"] = 5_000.0
+            names.append(scored(document))
+        section = render(names)
+        section = section[section.index("## Flagged / rejected"):]
+        listed = [line for line in section.splitlines() if line.startswith("- **S")]
+        self.assertEqual(len(listed), SPLIT_FLAG_LISTING_CAP)
+        self.assertIn("…and 7 more.", section)
+
+    def test_al_sel_04_is_not_counted_as_a_rejection_reason(self) -> None:
+        """It rejected nobody: with no notes written it is true universe-wide."""
+
+        section = self.markdown[self.markdown.index("## Flagged / rejected"):]
+        self.assertNotIn("AL-SEL-04", section)
+        self.assertNotIn("no thesis note", section)
+
+    def test_the_header_states_the_thesis_backlog_once(self) -> None:
+        self.assertIn("Thesis notes:", self.markdown)
+        self.assertIn("Write `notes/<TICKER>.md` to promote one", self.markdown)
 
     def test_monitored_row_carries_only_the_surviving_flag_labels(self) -> None:
         """Elevated vol and near-high became scores; earnings stayed a flag."""
