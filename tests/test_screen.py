@@ -6,13 +6,16 @@ runs the Layer 1 phase exactly as `commands/wheel-screen --score-only` would.
 
 from __future__ import annotations
 
+import json
 import shutil
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from wheel.screen import run_screen
+from wheel.universe import Stage1Survivor
+from wheel_mcp.acquire import deep_snapshot
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 RUN_DATE = date(2026, 8, 15)
@@ -124,6 +127,44 @@ class WheelScreenTests(unittest.TestCase):
         _, markdown = run_screen(make_config(self.wheelops), RUN_DATE)
         self.assertIn("# Wheel screen", markdown)
         self.assertIn("No in-zone candidates", markdown)
+
+    def test_reused_snapshot_is_copied_to_current_date_and_screened(self) -> None:
+        snapshots = self.wheelops / "snapshots"
+        today = snapshots / "2026-08-15_F.json"
+        document = json.loads(today.read_text())
+        today.unlink()
+        document["snapshot_date"] = "2026-08-14"
+        yesterday = snapshots / "2026-08-14_F.json"
+        yesterday.write_text(json.dumps(document))
+
+        def unexpected_fetch(*_args, **_kwargs):
+            self.fail("a reusable snapshot must not trigger a provider fetch")
+
+        result = deep_snapshot(
+            [
+                Stage1Survivor(
+                    "F",
+                    price=document["price"]["current"],
+                    market_cap=document["identity"]["market_cap"],
+                    sector=document["identity"]["sector"],
+                )
+            ],
+            wheelops=self.wheelops,
+            run_date=RUN_DATE,
+            fetched_at=datetime(2026, 8, 15, 9, 0),
+            policy=None,
+            fetch_snapshot=unexpected_fetch,
+            fetch_calendar=unexpected_fetch,
+            say=lambda _message: None,
+        )
+
+        self.assertEqual(result["reused"], ["F"])
+        self.assertTrue(yesterday.is_file())
+        self.assertTrue(today.is_file())
+        self.assertEqual(today.read_bytes(), yesterday.read_bytes())
+
+        _, markdown = run_screen(make_config(self.wheelops), RUN_DATE)
+        self.assertIn("| 1 | F |", markdown)
 
 
 if __name__ == "__main__":

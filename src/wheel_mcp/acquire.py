@@ -18,6 +18,7 @@ from __future__ import annotations
 from datetime import date, datetime
 import json
 from pathlib import Path
+import shutil
 from typing import Any, Callable, Mapping, Sequence
 
 from dataclasses import replace as dataclass_replace
@@ -217,23 +218,36 @@ def deep_snapshot(
         ticker = survivor.ticker
         existing_path = snapshots_dir / snapshot_filename(run_date.isoformat(), ticker)
         existing: Mapping[str, Any] | None = None
+        existing_source: Path | None = None
 
         # Look at the newest snapshot for this ticker, whatever its date.
         candidates = sorted(snapshots_dir.glob(f"*_{ticker}.json"))
         if candidates:
             try:
-                existing = json.loads(candidates[-1].read_text())
+                existing_source = candidates[-1]
+                existing = json.loads(existing_source.read_text())
             except (OSError, json.JSONDecodeError):
                 existing = None
 
-        if should_reuse_snapshot(
+        reuse = should_reuse_snapshot(
             existing,
             run_date=run_date.isoformat(),
             stage1_price=survivor.price,
             stage1_price_is_cached=survivor.price_is_cached,
-        ):
-            reused.append(ticker)
-        else:
+        )
+        if reuse and existing_source is not None:
+            try:
+                # Layer 1 enumerates only this run date. Keep the immutable
+                # source snapshot and materialize a dated copy for this run.
+                if existing_source != existing_path:
+                    shutil.copy2(existing_source, existing_path)
+                reused.append(ticker)
+            except OSError:
+                # A copy failure must not silently omit a Stage 1 survivor.
+                # Fall through to a fresh provider fetch for this name.
+                reuse = False
+
+        if not reuse:
             try:
                 snapshot = fetch_snapshot(
                     ticker, policy=policy, throttle=DEFAULT_REQUEST_THROTTLE
