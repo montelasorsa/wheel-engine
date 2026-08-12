@@ -38,6 +38,7 @@ from wheel.universe import (
 from .fmp import FmpConfigurationError, fill_document, load_fmp_api_key
 from .info_cache import (
     entry_from_row,
+    has_current_fields,
     prune,
     read_info_cache,
     row_from_entry,
@@ -164,7 +165,7 @@ def scan_universe(
 
     for index, ticker in enumerate(tickers, 1):
         entry = cache.get(ticker)
-        if is_info_fresh(entry, on=stamp):
+        if is_info_fresh(entry, on=stamp) and has_current_fields(entry):
             rows.append(row_from_entry(ticker, entry))
             hits += 1
         else:
@@ -178,6 +179,8 @@ def scan_universe(
                     "price": fundamentals.get("current_price"),
                     "market_cap": fundamentals.get("market_cap"),
                     "sector": fundamentals.get("sector"),
+                    "quote_type": fundamentals.get("quote_type"),
+                    "name": fundamentals.get("company_name"),
                 }
                 rows.append(row)
                 fetched_entries[ticker] = entry_from_row(row, run_date)

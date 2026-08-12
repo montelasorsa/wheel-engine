@@ -27,7 +27,13 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-CACHE_FIELDS = ("price", "market_cap", "sector")
+CACHE_FIELDS = ("price", "market_cap", "sector", "quote_type", "name")
+
+
+def has_current_fields(entry: Mapping[str, Any]) -> bool:
+    """Whether a cache row can answer every current Stage 1 question."""
+
+    return all(field in entry for field in CACHE_FIELDS)
 
 
 def iso_week_label(on: date) -> str:

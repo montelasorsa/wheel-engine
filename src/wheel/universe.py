@@ -26,6 +26,19 @@ from numbers import Real
 from typing import Any, Iterable, Mapping, Sequence
 
 
+DEFAULT_ETF_EXCLUDE_PATTERNS: tuple[str, ...] = (
+    "2x",
+    "3x",
+    "Ultra",
+    "Inverse",
+    "Bear",
+    "Short",
+    "ProShares",
+    "Direxion",
+    "Single",
+)
+
+
 @dataclass(frozen=True)
 class UniverseFilters:
     """Operator-configured Stage 1 floors and overrides."""
@@ -34,6 +47,7 @@ class UniverseFilters:
     market_cap_floor: float
     include: tuple[str, ...] = ()
     exclude: tuple[str, ...] = ()
+    etf_exclude_patterns: tuple[str, ...] = DEFAULT_ETF_EXCLUDE_PATTERNS
 
 
 @dataclass(frozen=True)
@@ -68,11 +82,21 @@ def universe_filters_from_config(config: Mapping[str, Any]) -> UniverseFilters:
     """Purely extract the Stage 1 block from parsed YAML."""
 
     universe = config["universe"]
+    configured_patterns = universe.get(
+        "etf_exclude_patterns", DEFAULT_ETF_EXCLUDE_PATTERNS
+    )
+    if isinstance(configured_patterns, str):
+        configured_patterns = (configured_patterns,)
     return UniverseFilters(
         price_floor=float(universe["price_floor"]),
         market_cap_floor=float(universe["market_cap_floor"]),
         include=normalize_symbols(universe.get("include") or ()),
         exclude=normalize_symbols(universe.get("exclude") or ()),
+        etf_exclude_patterns=tuple(
+            str(pattern).strip()
+            for pattern in configured_patterns
+            if str(pattern).strip()
+        ),
     )
 
 
@@ -102,9 +126,12 @@ def filter_stage1(
 ) -> Stage1Result:
     """Apply the cheap filters to raw scanned rows.
 
-    `rows` carry at least `ticker`, and optionally `price`, `market_cap` and
-    `sector`. Missing data is a rejection with its own reason, never a silent
-    drop and never a pass -- fail closed, same as the Layer 1 gates.
+    `rows` carry at least `ticker`, and optionally `price`, `market_cap`,
+    `sector`, `quote_type` and `name`. Missing data is a rejection with its own
+    reason, never a silent drop and never a pass -- fail closed, same as the
+    Layer 1 gates. ST-SEL-08 admits conventional ETFs without an issuer market
+    cap; configured product-name patterns keep leveraged, inverse and
+    single-stock funds outside that exception.
 
     `include` names bypass the floors entirely (the operator asked for them by
     name) but still obey `exclude`, which always wins.
@@ -130,10 +157,20 @@ def filter_stage1(
         market_cap = _number(row.get("market_cap"))
         sector = row.get("sector")
         sector = sector if isinstance(sector, str) and sector.strip() else None
+        quote_type = str(row.get("quote_type") or "").strip().upper()
+        name = str(row.get("name") or "").strip()
+        is_etf = quote_type == "ETF"
         cached = bool(row.get("price_is_cached"))
 
         if ticker in excluded:
             reject("excluded by config", ticker)
+            continue
+
+        if is_etf and any(
+            pattern.casefold() in name.casefold()
+            for pattern in filters.etf_exclude_patterns
+        ):
+            reject("excluded leveraged/inverse/single-stock ETF", ticker)
             continue
 
         if ticker in forced:
@@ -155,10 +192,10 @@ def filter_stage1(
         if price < filters.price_floor:
             reject("price below floor (ST-SEL-04)", ticker)
             continue
-        if market_cap is None:
+        if not is_etf and market_cap is None:
             reject("no market cap", ticker)
             continue
-        if market_cap < filters.market_cap_floor:
+        if not is_etf and market_cap < filters.market_cap_floor:
             reject("market cap below floor (AL-SEL-06)", ticker)
             continue
 

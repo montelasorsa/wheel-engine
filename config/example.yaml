@@ -26,6 +26,7 @@ universe:
   price_floor: 10
   include: [SPY, QQQ]
   exclude: []
+  etf_exclude_patterns: ["2x", "3x", "Ultra", "Inverse", "Bear", "Short", "ProShares", "Direxion", "Single"]
 
 # Behavior only -- never secrets. The FMP API key is loaded from .env; see
 # .env.example for the tracked template. An API key must not appear in

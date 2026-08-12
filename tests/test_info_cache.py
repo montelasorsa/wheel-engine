@@ -49,6 +49,8 @@ def entry(fetched_on: str, price: float = 50.0, market_cap: float = 5e9) -> dict
         "price": price,
         "market_cap": market_cap,
         "sector": "Industrials",
+        "quote_type": "EQUITY",
+        "name": "Example Corporation",
         "fetched_on": fetched_on,
     }
 
@@ -65,6 +67,8 @@ class Fetcher:
             "regularMarketPrice": 42.0,
             "marketCap": 9e9,
             "sector": "Technology",
+            "quoteType": "EQUITY",
+            "longName": "Example Technology Corporation",
         }
 
 
@@ -193,6 +197,26 @@ class ScanCacheTests(unittest.TestCase):
         self.assertEqual(rows[0]["price"], 42.0)
         self.assertNotIn("price_is_cached", rows[0])
         self.assertEqual(fetched["AAPL"]["fetched_on"], "2026-08-12")
+
+    def test_legacy_entry_without_etf_metadata_is_refetched(self) -> None:
+        fetcher = Fetcher()
+        legacy = {
+            "price": 50.0,
+            "market_cap": 5e9,
+            "sector": "Industrials",
+            "fetched_on": "2026-08-12",
+        }
+        rows, fetched = scan_universe(
+            ["AAPL"],
+            policy=POLICY,
+            fetch_info=fetcher,
+            say=quiet,
+            cached={"AAPL": legacy},
+            on=RUN_DATE,
+        )
+        self.assertEqual(fetcher.calls, ["AAPL"])
+        self.assertEqual(rows[0]["quote_type"], "EQUITY")
+        self.assertEqual(fetched["AAPL"]["name"], "Example Technology Corporation")
 
     def test_a_ticker_absent_from_the_cache_is_fetched(self) -> None:
         fetcher = Fetcher()

@@ -10,6 +10,7 @@ from __future__ import annotations
 import unittest
 
 from wheel.universe import (
+    DEFAULT_ETF_EXCLUDE_PATTERNS,
     Stage1Survivor,
     UniverseFilters,
     filter_stage1,
@@ -59,6 +60,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(filters.market_cap_floor, 2e9)
         self.assertEqual(filters.include, ("SPY", "QQQ"))
         self.assertEqual(filters.exclude, ())
+        self.assertEqual(filters.etf_exclude_patterns, DEFAULT_ETF_EXCLUDE_PATTERNS)
 
     def test_symbols_are_uppercased_and_deduplicated(self) -> None:
         self.assertEqual(normalize_symbols([" spy ", "QQQ", "spy", ""]), ("SPY", "QQQ"))
@@ -97,6 +99,50 @@ class Stage1FilterTests(unittest.TestCase):
         )
         self.assertEqual(result.survivors, ())
         self.assertIn("NOPRICE", result.rejected["no price"])
+        self.assertIn("NOCAP", result.rejected["no market cap"])
+
+    def test_etf_without_market_cap_is_admitted(self) -> None:
+        result = filter_stage1(
+            [
+                {
+                    **row("VTI", market_cap=None),
+                    "quote_type": "ETF",
+                    "name": "Vanguard Total Stock Market ETF",
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual([survivor.ticker for survivor in result.survivors], ["VTI"])
+
+    def test_leveraged_etf_is_rejected_by_name_pattern(self) -> None:
+        result = filter_stage1(
+            [
+                {
+                    **row("TQQQ", market_cap=None),
+                    "quote_type": "ETF",
+                    "name": "ProShares UltraPro QQQ 3x Shares",
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual(result.survivors, ())
+        self.assertIn(
+            "TQQQ",
+            result.rejected["excluded leveraged/inverse/single-stock ETF"],
+        )
+
+    def test_equity_without_market_cap_remains_rejected(self) -> None:
+        result = filter_stage1(
+            [
+                {
+                    **row("NOCAP", market_cap=None),
+                    "quote_type": "EQUITY",
+                    "name": "No Cap Incorporated",
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual(result.survivors, ())
         self.assertIn("NOCAP", result.rejected["no market cap"])
 
     def test_exclude_wins_over_everything(self) -> None:
