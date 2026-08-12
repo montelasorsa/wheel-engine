@@ -29,11 +29,19 @@ from wheel.universe import (
     Stage1Result,
     Stage1Survivor,
     filter_stage1,
+    is_info_fresh,
     should_reuse_snapshot,
     universe_filters_from_config,
 )
 
 from .fmp import FmpConfigurationError, fill_document, load_fmp_api_key
+from .info_cache import (
+    entry_from_row,
+    prune,
+    read_info_cache,
+    row_from_entry,
+    write_info_cache,
+)
 from .snapshot_writer import build_snapshot_document, write_snapshot_document
 from .universe_source import load_universe
 from .yahoo import (
@@ -124,42 +132,66 @@ def scan_universe(
     policy: Any,
     fetch_info: Callable[..., Any] = fetch_ticker_info,
     say: Callable[[str], None] = announce,
-) -> list[dict[str, Any]]:
+    cached: Mapping[str, Any] | None = None,
+    on: date | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     """Stage 1 light scan: price, market cap and sector per name.
 
-    Exactly ONE provider call per ticker -- `info` carries all three fields.
-    The deep five-call snapshot is Stage 2's job, and spending it here would
-    make the scan cost the same as the thing it exists to avoid.
+    Exactly ONE provider call per ticker -- `info` carries all three fields --
+    and none at all for a name still fresh in the cache. The deep five-call
+    snapshot is Stage 2's job, and spending it here would make the scan cost
+    the same as the thing it exists to avoid.
 
-    Retries are disabled for the scan: across 1,500 names the dominant failure
+    Retries are disabled for the scan: across 5,000 names the dominant failure
     is a delisted or renamed ticker, which is permanent, and three attempts
     with backoff turns each one into six wasted seconds. Stage 2 keeps the
     retry policy, where a transient failure actually costs a candidate.
+
+    Returns `(rows, fresh_entries)` -- the scan rows, and just the entries
+    actually fetched this run, for the caller to write back to the cache.
     """
 
     scan_policy = dataclass_replace(policy, max_attempts=1)
+    cache = cached or {}
+    run_date = on or date.today()
+    stamp = run_date.isoformat()
+
     rows: list[dict[str, Any]] = []
+    fetched_entries: dict[str, dict[str, Any]] = {}
     errors = 0
+    hits = 0
+
     for index, ticker in enumerate(tickers, 1):
-        try:
-            info = fetch_info(
-                ticker, policy=scan_policy, throttle=DEFAULT_REQUEST_THROTTLE
-            )
-            fundamentals = normalize_fundamentals(info or {})
-            rows.append(
-                {
+        entry = cache.get(ticker)
+        if is_info_fresh(entry, on=stamp):
+            rows.append(row_from_entry(ticker, entry))
+            hits += 1
+        else:
+            try:
+                info = fetch_info(
+                    ticker, policy=scan_policy, throttle=DEFAULT_REQUEST_THROTTLE
+                )
+                fundamentals = normalize_fundamentals(info or {})
+                row = {
                     "ticker": ticker,
                     "price": fundamentals.get("current_price"),
                     "market_cap": fundamentals.get("market_cap"),
                     "sector": fundamentals.get("sector"),
                 }
-            )
-        except Exception:
-            errors += 1
-            rows.append({"ticker": ticker, "price": None, "market_cap": None})
+                rows.append(row)
+                fetched_entries[ticker] = entry_from_row(row, run_date)
+            except Exception:
+                # Not cached: a failed lookup is usually a delisted ticker, and
+                # caching that would keep it out of the universe for a week
+                # without anyone noticing it had gone.
+                errors += 1
+                rows.append({"ticker": ticker, "price": None, "market_cap": None})
         if index % SCAN_PROGRESS_EVERY == 0 or index == len(tickers):
-            say(f"  SCAN {index}/{len(tickers)} ok={len(rows) - errors} errors={errors}")
-    return rows
+            say(
+                f"  SCAN {index}/{len(tickers)} cached={hits} "
+                f"fetched={len(fetched_entries)} errors={errors}"
+            )
+    return rows, fetched_entries
 
 
 def deep_snapshot(
@@ -195,7 +227,10 @@ def deep_snapshot(
                 existing = None
 
         if should_reuse_snapshot(
-            existing, run_date=run_date.isoformat(), stage1_price=survivor.price
+            existing,
+            run_date=run_date.isoformat(),
+            stage1_price=survivor.price,
+            stage1_price_is_cached=survivor.price_is_cached,
         ):
             reused.append(ticker)
         else:
@@ -262,8 +297,21 @@ def acquire_universe(
     tickers = [str(row["ticker"]) for row in constituents]
     say(f"  UNIVERSE {len(tickers)} names with listed options")
 
-    say(f"STAGE 1 scanning {len(tickers)} names")
-    rows = scan_universe(tickers, policy=policy, fetch_info=fetch_info, say=say)
+    cache_dir = wheelops / "cache"
+    cached = read_info_cache(cache_dir, run_date)
+    say(f"STAGE 1 scanning {len(tickers)} names ({len(cached)} cached)")
+    rows, fetched_entries = scan_universe(
+        tickers,
+        policy=policy,
+        fetch_info=fetch_info,
+        say=say,
+        cached=cached,
+        on=run_date,
+    )
+    if fetched_entries:
+        write_info_cache(cache_dir, prune(fetched_entries, tickers), run_date)
+    cache_hits = sum(1 for row in rows if row.get("price_is_cached"))
+
     stage1: Stage1Result = filter_stage1(rows, filters)
     say(
         f"  SURVIVORS {len(stage1.survivors)} of {stage1.scanned} "
@@ -299,6 +347,8 @@ def acquire_universe(
         "universe_stale_warning": staleness,
         "stage1_survivors": len(stage1.survivors),
         "stage1_rejected": stage1.rejected,
+        "stage1_cache_hits": cache_hits,
+        "stage1_fetched": len(fetched_entries),
         "snapshots_written": len(stage2["written"]),
         "snapshots_reused": len(stage2["reused"]),
         "fetch_errors": stage2["errors"],

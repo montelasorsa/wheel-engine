@@ -20,6 +20,7 @@ name, and the Stage 2 snapshot already records `options.has_options` for free.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 import math
 from numbers import Real
 from typing import Any, Iterable, Mapping, Sequence
@@ -44,6 +45,10 @@ class Stage1Survivor:
     market_cap: float | None
     sector: str | None
     forced: bool = False  # from `include`: kept regardless of the floors
+    # True when `price` came from the Stage 1 cache rather than a live quote.
+    # It is a floor check either way, but it must not then be used as evidence
+    # that a name has *not moved* -- see `should_reuse_snapshot`.
+    price_is_cached: bool = False
 
 
 @dataclass(frozen=True)
@@ -125,6 +130,7 @@ def filter_stage1(
         market_cap = _number(row.get("market_cap"))
         sector = row.get("sector")
         sector = sector if isinstance(sector, str) and sector.strip() else None
+        cached = bool(row.get("price_is_cached"))
 
         if ticker in excluded:
             reject("excluded by config", ticker)
@@ -132,7 +138,14 @@ def filter_stage1(
 
         if ticker in forced:
             survivors.append(
-                Stage1Survivor(ticker, price, market_cap, sector, forced=True)
+                Stage1Survivor(
+                    ticker,
+                    price,
+                    market_cap,
+                    sector,
+                    forced=True,
+                    price_is_cached=cached,
+                )
             )
             continue
 
@@ -149,7 +162,11 @@ def filter_stage1(
             reject("market cap below floor (AL-SEL-06)", ticker)
             continue
 
-        survivors.append(Stage1Survivor(ticker, price, market_cap, sector))
+        survivors.append(
+            Stage1Survivor(
+                ticker, price, market_cap, sector, price_is_cached=cached
+            )
+        )
 
     # `include` names absent from the scan are still carried into Stage 2;
     # the deep fetch is what discovers whether they are real.
@@ -168,6 +185,47 @@ def filter_stage1(
 
 
 # ---------------------------------------------------------------------------
+# Stage 1 cache freshness
+#
+# The decision is here, pure; the files are Layer 0's (`wheel_mcp.info_cache`).
+# Same split as the Stage 2 reuse decision below, for the same reason.
+# ---------------------------------------------------------------------------
+
+INFO_CACHE_MAX_AGE_DAYS = 7
+
+
+def is_info_fresh(
+    entry: Mapping[str, Any] | None,
+    *,
+    on: str,
+    max_age_days: int = INFO_CACHE_MAX_AGE_DAYS,
+) -> bool:
+    """Is a cached Stage 1 row still usable on `on` (an ISO date)?
+
+    Stage 1 asks three questions -- price above $10, market cap above $2B,
+    which sector -- and none of them turns over daily for a name large enough
+    to pass. A week-old answer is the same answer, and asking again costs 5,300
+    provider calls and forty minutes.
+
+    Fails closed on anything unparseable: a cache entry that cannot be dated is
+    not a cache entry.
+    """
+
+    if not isinstance(entry, Mapping):
+        return False
+    fetched_on = entry.get("fetched_on")
+    if not isinstance(fetched_on, str):
+        return False
+    try:
+        fetched = date.fromisoformat(fetched_on)
+        asked = date.fromisoformat(on)
+    except (TypeError, ValueError):
+        return False
+    age = (asked - fetched).days
+    return 0 <= age < max_age_days
+
+
+# ---------------------------------------------------------------------------
 # Stage 2 reuse decision
 # ---------------------------------------------------------------------------
 
@@ -176,8 +234,6 @@ REUSE_PRICE_TOLERANCE = 0.05
 
 def same_iso_week(left: str, right: str) -> bool:
     """True when two ISO dates fall in the same ISO week."""
-
-    from datetime import date
 
     try:
         first, second = date.fromisoformat(left), date.fromisoformat(right)
@@ -192,6 +248,7 @@ def should_reuse_snapshot(
     run_date: str,
     stage1_price: float | None,
     tolerance: float = REUSE_PRICE_TOLERANCE,
+    stage1_price_is_cached: bool = False,
 ) -> bool:
     """Reuse a same-week snapshot when the price has barely moved.
 
@@ -200,12 +257,22 @@ def should_reuse_snapshot(
     moved more than `tolerance` is telling the same story, so the existing
     file stands. Any doubt -- missing snapshot, missing price, different week
     -- refetches, because a stale snapshot silently scores the wrong week.
+
+    `stage1_price_is_cached` closes a trap the Stage 1 cache would otherwise
+    set. A cached price is by construction close to the price in a same-week
+    snapshot -- they may even come from the same original quote -- so the
+    tolerance test would pass automatically and every snapshot would be reused
+    forever. The cache would look like a speedup while quietly freezing the
+    screen. When the price is cached the test is refused outright: the reuse
+    decision needs a *fresh* observation to be a decision at all.
     """
 
     if not existing:
         return False
     snapshot_date = existing.get("snapshot_date")
     if not isinstance(snapshot_date, str) or not same_iso_week(snapshot_date, run_date):
+        return False
+    if stage1_price_is_cached:
         return False
 
     stage1 = _number(stage1_price)
