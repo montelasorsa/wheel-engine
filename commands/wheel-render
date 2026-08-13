@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# /wheel-render — frozen weekly markdown + sidecar → portable HTML document.
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$HOME/.venvs/wheel-screener/bin/python"
+cd "$REPO"
+PYTHONPATH=src exec "$PY" -m wheel.render_html "$@"
