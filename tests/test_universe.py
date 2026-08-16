@@ -11,6 +11,7 @@ import unittest
 
 from wheel.universe import (
     DEFAULT_ETF_EXCLUDE_PATTERNS,
+    ETF_YIELD_CEILING,
     Stage1Survivor,
     UniverseFilters,
     filter_stage1,
@@ -128,8 +129,126 @@ class Stage1FilterTests(unittest.TestCase):
         self.assertEqual(result.survivors, ())
         self.assertIn(
             "TQQQ",
-            result.rejected["excluded leveraged/inverse/single-stock ETF"],
+            result.rejected["excluded leveraged/inverse/derivative-income ETF (AL-SEL-07)"],
         )
+
+    # -- AL-SEL-07: ETF structural screen -----------------------------------
+    # Passive ownership of an index, sector or asset class is admissible;
+    # a fund whose distribution is written option premium is not. All three
+    # tests run at Stage 1 so a structured product never costs a deep snapshot.
+
+    def test_derivative_income_etf_is_rejected_by_issuer_pattern(self) -> None:
+        result = filter_stage1(
+            [
+                {
+                    **row("COYY", market_cap=None, sector=None),
+                    "quote_type": "ETF",
+                    "name": "YieldMax COIN Option Income Strategy ETF",
+                    "dividend_yield": 200.0,
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual(result.survivors, ())
+        self.assertIn(
+            "COYY",
+            result.rejected["excluded leveraged/inverse/derivative-income ETF (AL-SEL-07)"],
+        )
+
+    def test_unrecognized_issuer_is_still_caught_by_the_yield_ceiling(self) -> None:
+        """A new product nobody has name-patterned yet still cannot pass."""
+
+        result = filter_stage1(
+            [
+                {
+                    **row("NEWX", market_cap=None),
+                    "quote_type": "ETF",
+                    "name": "Ascendant Enhanced Distribution Fund",
+                    "dividend_yield": 35.0,
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual(result.survivors, ())
+        reason = next(iter(result.rejected))
+        self.assertIn("AL-SEL-07: derivative-income ETF", reason)
+        self.assertIn("35.0%", reason)
+        self.assertIn("20% ceiling", reason)
+
+    def test_yield_exactly_at_the_ceiling_is_admitted(self) -> None:
+        """The rule says *above* 20%, so the boundary itself survives."""
+
+        result = filter_stage1(
+            [
+                {
+                    **row("EDGE", market_cap=None),
+                    "quote_type": "ETF",
+                    "name": "High Dividend Asset Class Fund",
+                    "dividend_yield": ETF_YIELD_CEILING * 100.0,
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual([survivor.ticker for survivor in result.survivors], ["EDGE"])
+
+    def test_unclassified_etf_is_rejected_as_a_structured_product(self) -> None:
+        result = filter_stage1(
+            [
+                {
+                    **row("BAGY", market_cap=None, sector=None),
+                    "quote_type": "ETF",
+                    "name": "Ascendant Bitcoin Advantage Fund",
+                    "dividend_yield": 5.0,
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual(result.survivors, ())
+        self.assertIn(
+            "BAGY",
+            result.rejected["AL-SEL-07: unclassified ETF, likely structured product"],
+        )
+
+    def test_conventional_sector_etf_is_admitted(self) -> None:
+        result = filter_stage1(
+            [
+                {
+                    **row("XLK", market_cap=None, sector="Technology"),
+                    "quote_type": "ETF",
+                    "name": "Technology Select Sector SPDR Fund",
+                    "dividend_yield": 2.0,
+                }
+            ],
+            FILTERS,
+        )
+        self.assertEqual([survivor.ticker for survivor in result.survivors], ["XLK"])
+        self.assertEqual(result.survivors[0].dividend_yield, 2.0)
+
+    def test_included_etf_bypasses_every_al_sel_07_filter(self) -> None:
+        """SPY and QQQ are themselves unclassified ETFs; include outranks the rule."""
+
+        result = filter_stage1(
+            [
+                {
+                    **row("SPY", market_cap=None, sector=None),
+                    "quote_type": "ETF",
+                    "name": "SPDR S&P 500 Covered Call Lookalike 3x",
+                    "dividend_yield": 400.0,
+                }
+            ],
+            FORCED,
+        )
+        self.assertEqual([survivor.ticker for survivor in result.survivors], ["SPY"])
+        self.assertTrue(result.survivors[0].forced)
+
+    def test_an_equity_is_untouched_by_the_etf_screen(self) -> None:
+        """A high-yielding equity is a question for the scorers, not Stage 1."""
+
+        result = filter_stage1(
+            [{**row("HIYLD"), "quote_type": "EQUITY", "dividend_yield": 40.0}],
+            FILTERS,
+        )
+        self.assertEqual([survivor.ticker for survivor in result.survivors], ["HIYLD"])
 
     def test_equity_without_market_cap_remains_rejected(self) -> None:
         result = filter_stage1(

@@ -5,12 +5,16 @@ list the operator already chose. Enumerating that universe needs a provider
 (see `wheel_mcp.universe_source`), but deciding who survives the cheap filters
 is rule logic and lives here at Layer 1.
 
-Only the two cheapest rules run at this stage:
+Only the cheapest rules run at this stage:
 
 - **ST-SEL-04** -- the absolute $10 floor. Categorical, does not scale.
 - **AL-SEL-06** -- market cap floor, mid-cap or above at pilot scale. Price and
   market cap answer different questions; conflating them is how a screen
   rejects a sound $15 large-cap and accepts an unsound $45 micro-cap.
+- **AL-SEL-07** -- ETF structure. An ETF is admissible only as passive
+  ownership of an index, sector or asset class; derivative-income products are
+  not. It runs here rather than at Stage 2 because the whole point is to spend
+  no provider calls on a name that cannot be a candidate.
 
 Everything else needs a full snapshot and belongs to Stage 2. Optionability
 (ST-SEL-13) is deliberately NOT checked here: it costs one provider call per
@@ -27,6 +31,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 
 DEFAULT_ETF_EXCLUDE_PATTERNS: tuple[str, ...] = (
+    # Leveraged, inverse and single-stock funds.
     "2x",
     "3x",
     "Ultra",
@@ -36,7 +41,22 @@ DEFAULT_ETF_EXCLUDE_PATTERNS: tuple[str, ...] = (
     "ProShares",
     "Direxion",
     "Single",
+    # AL-SEL-07: derivative-income products. Their distribution is written
+    # option premium, not earnings, and the resulting NAV decay reads to the
+    # scorers as a deep discount from the two-year high.
+    "YieldMax",
+    "Covered Call",
+    "Option Income",
+    "Premium Income",
+    "NEOS",
+    "Roundhill",
+    "Defiance",
 )
+
+# AL-SEL-07: an ETF distributing above this is selling something, not owning
+# it. Held as a fraction; provider yields arrive already in percent, so the
+# comparison multiplies by 100 rather than dividing the data.
+ETF_YIELD_CEILING = 0.20
 
 
 @dataclass(frozen=True)
@@ -58,6 +78,7 @@ class Stage1Survivor:
     price: float | None
     market_cap: float | None
     sector: str | None
+    dividend_yield: float | None = None  # percent, as the provider reports it
     forced: bool = False  # from `include`: kept regardless of the floors
     # True when `price` came from the Stage 1 cache rather than a live quote.
     # It is a floor check either way, but it must not then be used as evidence
@@ -161,18 +182,15 @@ def filter_stage1(
         name = str(row.get("name") or "").strip()
         is_etf = quote_type == "ETF"
         cached = bool(row.get("price_is_cached"))
+        dividend_yield = _number(row.get("dividend_yield"))
 
         if ticker in excluded:
             reject("excluded by config", ticker)
             continue
 
-        if is_etf and any(
-            pattern.casefold() in name.casefold()
-            for pattern in filters.etf_exclude_patterns
-        ):
-            reject("excluded leveraged/inverse/single-stock ETF", ticker)
-            continue
-
+        # `include` is checked before the ETF screens, not after: the operator
+        # named these, and SPY and QQQ are themselves unclassified ETFs that
+        # AL-SEL-07's sector test would otherwise reject.
         if ticker in forced:
             survivors.append(
                 Stage1Survivor(
@@ -180,10 +198,38 @@ def filter_stage1(
                     price,
                     market_cap,
                     sector,
+                    dividend_yield=dividend_yield,
                     forced=True,
                     price_is_cached=cached,
                 )
             )
+            continue
+
+        if is_etf and any(
+            pattern.casefold() in name.casefold()
+            for pattern in filters.etf_exclude_patterns
+        ):
+            reject(
+                "excluded leveraged/inverse/derivative-income ETF (AL-SEL-07)",
+                ticker,
+            )
+            continue
+
+        # AL-SEL-07: an ETF is admissible only as passive ownership of an
+        # index, sector or asset class. Both tests below run at Stage 1 so a
+        # structured product never costs a five-call deep snapshot.
+        if is_etf and dividend_yield is not None and (
+            dividend_yield > ETF_YIELD_CEILING * 100.0
+        ):
+            reject(
+                f"AL-SEL-07: derivative-income ETF (yield {dividend_yield:.1f}% "
+                f"exceeds {ETF_YIELD_CEILING:.0%} ceiling)",
+                ticker,
+            )
+            continue
+
+        if is_etf and sector is None:
+            reject("AL-SEL-07: unclassified ETF, likely structured product", ticker)
             continue
 
         if price is None:
@@ -201,7 +247,12 @@ def filter_stage1(
 
         survivors.append(
             Stage1Survivor(
-                ticker, price, market_cap, sector, price_is_cached=cached
+                ticker,
+                price,
+                market_cap,
+                sector,
+                dividend_yield=dividend_yield,
+                price_is_cached=cached,
             )
         )
 

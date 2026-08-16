@@ -209,6 +209,9 @@ def scan_universe(
                     "sector": fundamentals.get("sector"),
                     "quote_type": fundamentals.get("quote_type"),
                     "name": fundamentals.get("company_name"),
+                    # AL-SEL-07 needs the yield at Stage 1, before the deep
+                    # snapshot that would otherwise be the first place it lands.
+                    "dividend_yield": fundamentals.get("dividend_yield_percent"),
                 }
                 rows.append(row)
                 fetched_entries[ticker] = entry_from_row(row, run_date)

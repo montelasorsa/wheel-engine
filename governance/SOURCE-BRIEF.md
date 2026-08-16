@@ -1,6 +1,6 @@
 ---
-VERSION: 2.0
-DATE: 2026-08-03
+VERSION: 2.1
+DATE: 2026-08-16
 SUPERSEDES: Source Brief v1.0 (July 2026, `adventure-labs-scottishtrader-source-brief-v1.md`)
 STATUS: canonical
 DELIVERABLE: 2 of 8
@@ -286,6 +286,7 @@ Everything below is **ours**, not his. Each entry states what it adds, why, and 
 | **AL-SEL-04** *(new v2.0)* | **Written thesis gate.** A name is not tradeable until a `notes/<TICKER>.md` exists containing the business case and the name-specific kill-switch conditions | Implements the Proposal's §8.3 Stage 4 as a hard precondition rather than a research step. ST-SEL-09 requires willingness to own for twelve months; an unwritten thesis is an unexamined one. It also makes AL-RSK-01 name-specific instead of generic. | Friction on adding names — which is the intent. Adding a name is meant to be harder than trading one. |
 | **AL-SEL-05** *(new v2.0)* | **Zone exit while held.** A held name that appreciates out of band is not force-exited; it is flagged, and no *new* position opens on it until it re-enters band or the account grows into the next zone | *Closes G-8.* Appreciation is a profitable outcome (ST-CC-11) and forcing an exit to satisfy a sizing rule would convert a win into a tax event. The rule constrains new commitments, not existing ones. | A held name may sit outside policy for an extended period. Bounded by the fact that Phase 2 ends in the shares being called away. |
 | **AL-SEL-06** *(new v2.0)* | **Market cap is a separate filter from share price.** Price governs sizing; market cap governs quality, liquidity, and gap risk. Floor: mid-cap or above at pilot scale | Conflating the two is how a screen rejects a sound $15 large-cap and accepts an unsound $45 micro-cap. ST-SEL-05 (gap risk) and ST-SEL-13 (liquidity) are both really market-cap proxies. | Narrows the universe. Acceptable — breadth is not scarce. |
+| **AL-SEL-07** *(new v2.1)* | **ETF structural screen.** An ETF is admissible only where it represents passive ownership of an index, sector, or asset class. Derivative-income products are excluded. Three disqualifiers, applied at Stage 1: issuer/strategy name pattern; distribution yield above a 20% ceiling; null sector classification on a fund not named in `universe.include` | The 2026-08-13 run filled **every Zone 1 slot** — the only immediately tradeable zone — with derivative-income ETFs: COYY 386%, TSYY 201%, YBTC 81%, BITY 57%, BAGY 38%. Their distributions are written option premium, not earnings, so ST-SEL-06 reads them as extraordinary dividends; their structural NAV decay reads to ST-SEL-12 as a deep discount from the two-year high. The screen was rewarding capital destruction. Selling puts on a fund that already sells calls also inverts the strategy — the premium the Wheel exists to collect has been sold twice. ST-SEL-08 admits conventional ETFs; this bounds that exception to what "conventional" was always meant to mean | A conventional fund with an unusually high distribution can be caught by the ceiling. The `universe.include` list bypasses all three filters and is the documented escape hatch — SPY and QQQ pass through it, being themselves unclassified by sector. |
 
 ## 15. Sizing and Portfolio Additions
 
@@ -463,6 +464,7 @@ version.
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | Jul 2026 | Initial draft from core guide. 10 gaps open. |
+| **2.1** | **2026-08-16** | Added **AL-SEL-07** (ETF structural screen). Promoted from a live-run failure rather than from the Transcripts: the 2026-08-13 screen returned an all-derivative-income Zone 1, exposing that ST-SEL-08's conventional-ETF exception had no stated bound. No existing rule amended; ST-SEL-06 and ST-SEL-12 are unchanged and now see a universe those products cannot enter. |
 | **2.0** | **2026-08-03** | Promoted 8 gaps from Distilled Transcripts. Added domains FRM, ORD, ROL, CSH, SIZ, EVT, PER, PHI; retired RSK with full crosswalk. 34 new ST- rules, 12 new AL- rules. Resolved C-3; opened C-6. Opened G-11, G-12, G-13, G-14. Zone derivation (AL-SEL-02/03), thesis gate (AL-SEL-04), sector governance (AL-SIZ-02/03/04), assignment capacity display (AL-CSH-02), decision record (AL-OPS-05), snapshot discipline (AL-OPS-06). |
 
 ---

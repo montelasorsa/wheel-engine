@@ -45,12 +45,15 @@ POLICY = YFinanceFetchPolicy(
 
 
 def entry(fetched_on: str, price: float = 50.0, market_cap: float = 5e9) -> dict:
+    """A complete cache row. Must carry every CACHE_FIELDS key or it is a miss."""
+
     return {
         "price": price,
         "market_cap": market_cap,
         "sector": "Industrials",
         "quote_type": "EQUITY",
         "name": "Example Corporation",
+        "dividend_yield": 1.8,
         "fetched_on": fetched_on,
     }
 

@@ -27,7 +27,19 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-CACHE_FIELDS = ("price", "market_cap", "sector", "quote_type", "name")
+CACHE_FIELDS = (
+    "price",
+    "market_cap",
+    "sector",
+    "quote_type",
+    "name",
+    # AL-SEL-07's yield ceiling is a Stage 1 test, so a cached row has to be
+    # able to answer it. Adding a field here invalidates every entry written
+    # before it (has_current_fields is all-or-nothing) and the next run pays
+    # for a cold scan -- deliberately, since the alternative is a cached row
+    # reaching the filter with no yield and failing closed.
+    "dividend_yield",
+)
 
 
 def has_current_fields(entry: Mapping[str, Any]) -> bool:

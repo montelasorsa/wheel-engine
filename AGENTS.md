@@ -25,7 +25,7 @@ The tool **proposes**. The operator **decides**. Nothing executes a trade.
 | Document | Version | Location | Role |
 |---|---|---|---|
 | Strategy Constitution | **v2.0** | `governance/CONSTITUTION.md` | Binding rules. When code and Constitution disagree, Constitution wins. |
-| ScottishTrader Source Brief | **v2.0** | `governance/SOURCE-BRIEF.md` | Rule definitions, rationale, gap register. Every rule ID lives here. |
+| ScottishTrader Source Brief | **v2.1** | `governance/SOURCE-BRIEF.md` | Rule definitions, rationale, gap register. Every rule ID lives here. |
 | Investment Proposal | **v1.1** | `governance/PROPOSAL.md` | Architecture, validation criteria, sizing logic. |
 | Distilled Reddit Transcripts | v1.0 | `governance/DISTILLED-TRANSCRIPTS.md` | Primary source. Read-only reference, not cited directly by code. |
 | This file | **v2.0** | repo root | Agent instructions. |
@@ -205,6 +205,7 @@ Decisions made in conversation that aren't yet in governance docs. Newest first.
 
 | Date | Decision | Rationale | Supersedes |
 |---|---|---|---|
+| 2026-08-16 | **AL-SEL-07 minted: ETF structural screen**, promoted into Source Brief v2.1 rather than logged here alone | The 2026-08-13 run filled all five Zone 1 slots with derivative-income ETFs (COYY 386%, TSYY 201%, YBTC 81%, BITY 57%, BAGY 38%). Option-premium distributions read to ST-SEL-06 as extraordinary dividends and structural NAV decay reads to ST-SEL-12 as a discount from the high, so the screen ranked capital destruction highest. Three Stage 1 disqualifiers — issuer pattern, 20% yield ceiling, null sector — bypassed by `universe.include`. Applied before the deep snapshot so a structured product costs zero provider calls. The ID went into the Source Brief because the code emits it as a citation, and §7.4 forbids citing a rule that has no definition | The 2026-08-11 note that "minting AL-SEL-07 would need a Source Brief amendment" — that amendment is now made |
 | 2026-08-11 | **FMP readmitted as a bounded null-fill fallback** over four allowlisted fields | The 2026-08-03 removal was right about the general case and §4.4 is unchanged, but a hard gate reading CANNOT_EVALUATE fails closed — a null `net_income_ttm` rejects a name on a data gap, not on its merits. Measured residual: 17 of 1,285 names, ~50 requests/run | "FMP fully removed" (2026-08-03); "FMP removal confirmed" (2026-08-04); the FMP gap-fill argument in the 2026-08-06 null-handling row |
 | 2026-08-11 | Universe comes from the **CBOE options symbol directory**, not S&P index constituents | Index membership correlates with optionability but does not decide it, and a name without listed options cannot be wheeled at all. Measured on the 2026-08-11 run: 34 screened names had no CBOE-listed options, including the top-ranked monitored name. Universe 1,506 → 5,334 | S&P 500/400/600 scraping (moved to `legacy/universe_source_wikipedia.py`) |
 | 2026-08-11 | Screener sources from a broad universe, not a hand-picked watchlist | A screener that ranks a list you already chose inverts its purpose | `watchlist` config key |
