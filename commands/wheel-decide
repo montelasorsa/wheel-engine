@@ -6,7 +6,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 rc=0
-PYTHONPATH=src "$HOME/.venvs/wheel-screener/bin/python" -m wheel.decide "$@" || rc=$?
+PYTHONPATH=src "$REPO/.venv/bin/python" -m wheel.decide "$@" || rc=$?
 if [[ $rc -eq 0 ]]; then
   "$REPO/commands/wheel-backup" decisions \
     || echo "WARN: backup failed — the decision IS logged locally" >&2

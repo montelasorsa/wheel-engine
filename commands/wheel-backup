@@ -11,7 +11,7 @@
 #   wheel-backup --source S --dest D override config (used by tests)
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PY="$HOME/.venvs/wheel-screener/bin/python"
+PY="$REPO/.venv/bin/python"
 
 SOURCE=""
 DEST=""

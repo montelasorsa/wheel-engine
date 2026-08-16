@@ -4,7 +4,7 @@
 # phases; --score-only skips the fetch and scores existing snapshots.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PY="$HOME/.venvs/wheel-screener/bin/python"
+PY="$REPO/.venv/bin/python"
 cd "$REPO"
 if [[ "${1:-}" != "--score-only" ]]; then
   PYTHONPATH=src "$PY" -m wheel_mcp.acquire
