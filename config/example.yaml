@@ -26,6 +26,11 @@ universe:
   price_floor: 10
   include: [SPY, QQQ]
   exclude: []
+  # Seconds to wait after each Stage 1 `.info` fetch, on top of the shared
+  # throttle. A cold cache sweeps the whole universe in one run, which is the
+  # shape Yahoo rate-limits: on 2026-08-12 it cut a run off after 111 names.
+  # Cache hits are not paced -- they make no request.
+  fetch_delay_seconds: 0.75
   # Leveraged/inverse/single-stock, then AL-SEL-07 derivative-income issuers.
   # Matched case-insensitively against the fund's name, ETFs only.
   etf_exclude_patterns: ["2x", "3x", "Ultra", "Inverse", "Bear", "Short", "ProShares", "Direxion", "Single",

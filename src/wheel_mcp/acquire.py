@@ -19,6 +19,7 @@ from datetime import date, datetime
 import json
 from pathlib import Path
 import shutil
+import time
 from typing import Any, Callable, Mapping, Sequence
 
 from dataclasses import replace as dataclass_replace
@@ -164,6 +165,8 @@ def scan_universe(
     say: Callable[[str], None] = announce,
     cached: Mapping[str, Any] | None = None,
     on: date | None = None,
+    fetch_delay_seconds: float = 0.0,
+    sleeper: Callable[[float], None] = time.sleep,
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     """Stage 1 light scan: price, market cap and sector per name.
 
@@ -176,6 +179,13 @@ def scan_universe(
     is a delisted or renamed ticker, which is permanent, and three attempts
     with backoff turns each one into six wasted seconds. Stage 2 keeps the
     retry policy, where a transient failure actually costs a candidate.
+
+    `fetch_delay_seconds` paces the scan on top of the shared throttle. A cold
+    cache asks the provider about the whole universe in one uninterrupted
+    sweep, which is the shape that gets rate-limited: on 2026-08-12 a schema
+    change invalidated the cache and Yahoo cut the run off after 111 names.
+    The delay follows a *fetch* only -- a cache hit makes no request, so
+    pacing it would add an hour to a run that touched nothing.
 
     Returns `(rows, fresh_entries)` -- the scan rows, and just the entries
     actually fetched this run, for the caller to write back to the cache.
@@ -221,6 +231,11 @@ def scan_universe(
                 # without anyone noticing it had gone.
                 errors += 1
                 rows.append({"ticker": ticker, "price": None, "market_cap": None})
+            # Paced on attempts, not successes: a refused request is still a
+            # request, and the 2026-08-12 block was 1,289 consecutive failures
+            # arriving as fast as the loop could issue them.
+            if fetch_delay_seconds > 0:
+                sleeper(fetch_delay_seconds)
         if index % SCAN_PROGRESS_EVERY == 0 or index == len(tickers):
             say(
                 f"  SCAN {index}/{len(tickers)} cached={hits} "
@@ -347,6 +362,7 @@ def acquire_universe(
 
     cache_dir = wheelops / "cache"
     cached = read_info_cache(cache_dir, run_date)
+    fetch_delay = float(config["universe"].get("fetch_delay_seconds", 0.0))
     say(f"STAGE 1 scanning {len(tickers)} names ({len(cached)} cached)")
     rows, fetched_entries = scan_universe(
         tickers,
@@ -355,6 +371,7 @@ def acquire_universe(
         say=say,
         cached=cached,
         on=run_date,
+        fetch_delay_seconds=fetch_delay,
     )
     if fetched_entries:
         write_info_cache(cache_dir, prune(fetched_entries, tickers), run_date)

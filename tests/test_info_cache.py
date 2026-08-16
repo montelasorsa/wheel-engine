@@ -75,6 +75,24 @@ class Fetcher:
         }
 
 
+class FailingFetcher(Fetcher):
+    """A provider that refuses every request, as a rate-limited one does."""
+
+    def __call__(self, ticker, *, policy, throttle):
+        self.calls.append(ticker)
+        raise RuntimeError("Too Many Requests. Rate limited.")
+
+
+class Sleeper:
+    """Records pacing without spending any wall-clock time."""
+
+    def __init__(self) -> None:
+        self.waits: list[float] = []
+
+    def __call__(self, seconds: float) -> None:
+        self.waits.append(seconds)
+
+
 def quiet(_message: str) -> None:
     return None
 
@@ -250,6 +268,62 @@ class ScanCacheTests(unittest.TestCase):
         self.assertEqual(sorted(fetcher.calls), ["MISS", "STALE"])
         self.assertEqual(sorted(fetched), ["MISS", "STALE"])
         self.assertEqual(len(rows), 3)
+
+    def test_each_fetch_is_paced_by_the_configured_delay(self) -> None:
+        sleeper = Sleeper()
+        scan_universe(
+            ["A", "B", "C"],
+            policy=POLICY,
+            fetch_info=Fetcher(),
+            say=quiet,
+            on=RUN_DATE,
+            fetch_delay_seconds=0.75,
+            sleeper=sleeper,
+        )
+        self.assertEqual(sleeper.waits, [0.75, 0.75, 0.75])
+
+    def test_cache_hits_are_not_paced(self) -> None:
+        """Pacing a request that was never made would add an hour for nothing."""
+
+        sleeper = Sleeper()
+        scan_universe(
+            ["HIT", "MISS"],
+            policy=POLICY,
+            fetch_info=Fetcher(),
+            say=quiet,
+            cached={"HIT": entry("2026-08-12")},
+            on=RUN_DATE,
+            fetch_delay_seconds=0.75,
+            sleeper=sleeper,
+        )
+        self.assertEqual(sleeper.waits, [0.75])
+
+    def test_refused_requests_are_paced_too(self) -> None:
+        """A rate-limited run is all failures; unpaced retries dig deeper in."""
+
+        sleeper = Sleeper()
+        scan_universe(
+            ["A", "B"],
+            policy=POLICY,
+            fetch_info=FailingFetcher(),
+            say=quiet,
+            on=RUN_DATE,
+            fetch_delay_seconds=0.75,
+            sleeper=sleeper,
+        )
+        self.assertEqual(sleeper.waits, [0.75, 0.75])
+
+    def test_no_delay_configured_means_no_sleeping(self) -> None:
+        sleeper = Sleeper()
+        scan_universe(
+            ["A"],
+            policy=POLICY,
+            fetch_info=Fetcher(),
+            say=quiet,
+            on=RUN_DATE,
+            sleeper=sleeper,
+        )
+        self.assertEqual(sleeper.waits, [])
 
     def test_a_failed_lookup_is_not_cached(self) -> None:
         """Caching a delisting would hide it from the universe for a week."""
