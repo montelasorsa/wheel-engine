@@ -1,0 +1,244 @@
+{
+  "EMPTY": {
+    "analyst": {
+      "number_of_analyst_opinions": null,
+      "recommendation_key": null,
+      "target_mean_price": null
+    },
+    "business": {
+      "full_time_employees": null,
+      "industry": null,
+      "long_business_summary": null,
+      "long_name": null,
+      "sector": null,
+      "website": null
+    },
+    "cash_flow": {
+      "free_cashflow": null,
+      "operating_cashflow": null
+    },
+    "dividend": {
+      "dividend_rate": null,
+      "dividend_yield": null,
+      "ex_dividend_date": null,
+      "payout_ratio": null
+    },
+    "fetched_on": "2026-09-06",
+    "officers": [],
+    "ratios": {
+      "debt_to_equity": null,
+      "forward_pe": null,
+      "operating_margins": null,
+      "price_to_book": null,
+      "profit_margins": null,
+      "return_on_equity": null,
+      "trailing_pe": null
+    },
+    "revenue": {
+      "revenue_growth": null,
+      "revenue_per_share": null,
+      "total_revenue": null
+    },
+    "schema_version": 1,
+    "source": "yfinance.info",
+    "ticker": "EMPTY"
+  },
+  "FULL": {
+    "analyst": {
+      "number_of_analyst_opinions": 21,
+      "recommendation_key": "hold",
+      "target_mean_price": 12.35
+    },
+    "business": {
+      "full_time_employees": 177000,
+      "industry": "Auto Manufacturers",
+      "long_business_summary": "Ford Motor Company develops, delivers, and services a range of Ford trucks, commercial cars and vans, sport utility vehicles, and Lincoln luxury vehicles worldwide. It operates through Ford Blue, Ford Model e, and Ford Pro; Ford Next; and Ford Credit segments. The company sells Ford and Lincoln vehicles, service parts, and accessories through distributors and dealers, as well as through dealerships to commercial fleet customers, daily rental car companies, and governments.",
+      "long_name": "Ford Motor Company",
+      "sector": "Consumer Cyclical",
+      "website": "https://www.ford.com"
+    },
+    "cash_flow": {
+      "free_cashflow": 6032500224.0,
+      "operating_cashflow": 15421000192.0
+    },
+    "dividend": {
+      "dividend_rate": 0.6,
+      "dividend_yield": 5.42,
+      "ex_dividend_date": "2026-11-05",
+      "payout_ratio": 0.6522
+    },
+    "fetched_on": "2026-09-06",
+    "officers": [
+      {
+        "name": "Mr. William Clay Ford Jr.",
+        "title": "Executive Chairman"
+      },
+      {
+        "name": "Mr. James D. Farley Jr.",
+        "title": "President, CEO & Director"
+      },
+      {
+        "name": "Mr. Sherry House",
+        "title": "Chief Financial Officer"
+      },
+      {
+        "name": "Ms. Kumar Galhotra",
+        "title": "Chief Operating Officer"
+      }
+    ],
+    "ratios": {
+      "debt_to_equity": 322.14,
+      "forward_pe": 7.02,
+      "operating_margins": 0.0281,
+      "price_to_book": 0.94,
+      "profit_margins": 0.0322,
+      "return_on_equity": 0.0768,
+      "trailing_pe": 12.41
+    },
+    "revenue": {
+      "revenue_growth": 0.051,
+      "revenue_per_share": 44.28,
+      "total_revenue": 176191000064.0
+    },
+    "schema_version": 1,
+    "source": "yfinance.info",
+    "ticker": "FULL"
+  },
+  "MESSY": {
+    "analyst": {
+      "number_of_analyst_opinions": 7,
+      "recommendation_key": null,
+      "target_mean_price": null
+    },
+    "business": {
+      "full_time_employees": 4212,
+      "industry": null,
+      "long_business_summary": "A summary with surrounding whitespace.",
+      "long_name": null,
+      "sector": "Technology",
+      "website": null
+    },
+    "cash_flow": {
+      "free_cashflow": -412000000.0,
+      "operating_cashflow": null
+    },
+    "dividend": {
+      "dividend_rate": 0.0,
+      "dividend_yield": null,
+      "ex_dividend_date": "2026-05-14",
+      "payout_ratio": 0.0
+    },
+    "fetched_on": "2026-09-06",
+    "officers": [
+      {
+        "name": "Officer One",
+        "title": "Chief Executive Officer"
+      },
+      {
+        "name": null,
+        "title": "Chief Financial Officer"
+      },
+      {
+        "name": "Officer Three",
+        "title": null
+      },
+      {
+        "name": "Officer Five",
+        "title": "Chief Technology Officer"
+      },
+      {
+        "name": "Officer Six",
+        "title": "Chief Operating Officer"
+      },
+      {
+        "name": "Officer Seven",
+        "title": "General Counsel"
+      },
+      {
+        "name": "Officer Eight",
+        "title": "Chief People Officer"
+      },
+      {
+        "name": "Officer Nine",
+        "title": "Chief Marketing Officer"
+      },
+      {
+        "name": "Officer Ten",
+        "title": "Chief Revenue Officer"
+      },
+      {
+        "name": "Officer Eleven",
+        "title": "Chief Risk Officer"
+      },
+      {
+        "name": "Officer Twelve",
+        "title": "Chief Data Officer"
+      },
+      {
+        "name": "Officer Thirteen",
+        "title": "Corporate Secretary"
+      }
+    ],
+    "ratios": {
+      "debt_to_equity": 0.0,
+      "forward_pe": null,
+      "operating_margins": null,
+      "price_to_book": null,
+      "profit_margins": 0.0815,
+      "return_on_equity": -0.1142,
+      "trailing_pe": null
+    },
+    "revenue": {
+      "revenue_growth": null,
+      "revenue_per_share": null,
+      "total_revenue": null
+    },
+    "schema_version": 1,
+    "source": "yfinance.info",
+    "ticker": "MESSY"
+  },
+  "SPARSE": {
+    "analyst": {
+      "number_of_analyst_opinions": null,
+      "recommendation_key": "buy",
+      "target_mean_price": null
+    },
+    "business": {
+      "full_time_employees": null,
+      "industry": null,
+      "long_business_summary": null,
+      "long_name": "Quiet Holdings Corporation",
+      "sector": "Industrials",
+      "website": null
+    },
+    "cash_flow": {
+      "free_cashflow": null,
+      "operating_cashflow": null
+    },
+    "dividend": {
+      "dividend_rate": null,
+      "dividend_yield": null,
+      "ex_dividend_date": null,
+      "payout_ratio": null
+    },
+    "fetched_on": "2026-09-06",
+    "officers": [],
+    "ratios": {
+      "debt_to_equity": null,
+      "forward_pe": null,
+      "operating_margins": null,
+      "price_to_book": null,
+      "profit_margins": null,
+      "return_on_equity": null,
+      "trailing_pe": 18.6
+    },
+    "revenue": {
+      "revenue_growth": null,
+      "revenue_per_share": null,
+      "total_revenue": 812000000.0
+    },
+    "schema_version": 1,
+    "source": "yfinance.info",
+    "ticker": "SPARSE"
+  }
+}

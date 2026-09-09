@@ -116,6 +116,20 @@ monitored:
   max_per_zone: 5
   total_cap: 25
 
+# Enrichment (commands/wheel-enrich): one `info` call per top monitored name,
+# cached to WheelOps/enrichment/YYYY-MM-DD/<TICKER>.json and read by the
+# renderer for the click-to-expand company cards. Mechanical extraction only --
+# no rule, no score, no model. Every field is nullable and renders as an em
+# dash when missing.
+enrichment:
+  # How many monitored names to enrich, highest score first. Each one costs a
+  # single provider call, so this is the whole cost of the step.
+  top_n: 50
+  # false enriches Zone 1 only. true covers locked zones too, which is usually
+  # what you want: a name you cannot trade yet is exactly the one worth
+  # reading about before it unlocks.
+  include_locked_zones: true
+
 account:
   # AL-SEL-02 inputs. No broker link at pilot -- operator-maintained.
   # Constitution §11.2 uses $12,000 as the pilot working figure.

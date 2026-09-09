@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# /wheel-enrich — one `info` call per top monitored name → cached JSON records.
+#
+# Runs between /wheel-screen and /wheel-render. Reads the screen's monitored
+# sidecar to decide which names to enrich (enrichment.top_n in config.yaml),
+# writes WheelOps/enrichment/YYYY-MM-DD/<TICKER>.json. Mechanical throughout:
+# no rule, no score, no model. Skipping it renders a report without the
+# expandable company cards; it never changes a ranking.
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$REPO/.venv/bin/python"
+cd "$REPO"
+PYTHONPATH=src exec "$PY" -m wheel_mcp.enrich_fetch "$@"

@@ -60,6 +60,7 @@ is retired in v2.0 — see Source Brief Appendix B for the crosswalk.
 ├── snapshots/                         timestamped raw provider responses (Layer 0 writes here)
 ├── positions/                         trade ledger CSV
 ├── decisions/                         JSONL decision records (append-only)
+├── enrichment/                        YYYY-MM-DD/<TICKER>.json — mechanical company detail
 ├── weeks/                             weekly output markdown (Layer 1 + Layer 2 produce these)
 └── notes/                             per-ticker thesis files: <TICKER>.md
 ```
