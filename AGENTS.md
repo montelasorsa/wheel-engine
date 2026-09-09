@@ -48,6 +48,7 @@ is retired in v2.0 — see Source Brief Appendix B for the crosswalk.
 │   └── golden/                        seeded with README, NO BASELINE FROZEN YET
 ├── commands/                          entry points: /wheel-screen, /wheel-enrich, /wheel-render, /wheel-deliver
 ├── skills/                            Layer 2 — SOP procedures, Claude reads these as instructions
+├── scripts/                           launchd agent + install/uninstall (manual step)
 ├── docs/                              architecture docs, DECISIONS.md
 ├── governance/                        Constitution, Source Brief, Proposal, Transcripts
 ├── legacy/                            quarantined UI + FMP code — nothing in src/ imports this
@@ -61,6 +62,7 @@ is retired in v2.0 — see Source Brief Appendix B for the crosswalk.
 ├── positions/                         trade ledger CSV
 ├── decisions/                         JSONL decision records (append-only)
 ├── enrichment/                        YYYY-MM-DD/<TICKER>.json — mechanical company detail
+├── logs/                              launchd-YYYY-MM-DD.log — scheduled run output
 ├── weeks/                             weekly output markdown (Layer 1 + Layer 2 produce these)
 └── notes/                             per-ticker thesis files: <TICKER>.md
 ```
@@ -119,9 +121,12 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 3. **Layer 1 scorers** — screening filters mapped to ST-SEL-01 through ST-SEL-14 + AL-SEL-02
    through AL-SEL-06. Zone derivation. Sector checks. Each scorer has a golden-file test.
 4. **`/wheel-screen` command** — end-to-end: fetch → snapshot → score → produce `weeks/YYYY-MM-DD.md`
-5. **`wheel_mcp/server.py`** — MCP wrapper for Layer 2 use (Claude pulls data mid-conversation).
+5. **Weekly automation — launchd schedule + delivery pipeline** — `scripts/` holds the
+   `com.adventurelabs.wheel-engine` agent and its install/uninstall scripts. Sundays at 18:00:
+   screen → enrich → render → deliver. Installing is manual, always.
+6. **`wheel_mcp/server.py`** — MCP wrapper for Layer 2 use (Claude pulls data mid-conversation).
    Deferred until Layer 2 is live — the CLI path through Layer 0 is built first.
-6. **Golden-file baseline freeze** — needs a real full-universe run to produce.
+7. **Golden-file baseline freeze** — needs a real full-universe run to produce.
 
 ---
 
@@ -200,6 +205,7 @@ Decisions made in conversation that aren't yet in governance docs. Newest first.
 
 | Date | Decision | Rationale | Supersedes |
 |---|---|---|---|
+| 2026-08-XX | **Added Sunday 6pm launchd schedule.** Pipeline is: screen → enrich → render → deliver (file + email via Apple Mail). All steps deterministic; no LLM in the automated loop | A weekly tool the operator has to remember to run is a weekly tool that gets run for three weeks. launchd rather than cron because a cron job due while the Mac is asleep is simply missed, and missing one firing costs a whole week. Mail via `osascript` rather than SMTP because the account is already configured there and the alternative is a password in a repo that has spent real effort keeping secrets out. Installing is manual — `scripts/install-schedule.sh` is never invoked by the build | Manual invocation of each command |
 | 2026-08-XX | **Retired Layer 2 decision-support.** Screener is now the sole product. Constitution Article XIII removed. Article IX §9.3/§9.4 removed | The decision log and the calibration harness were built to make judgment measurable, but evaluating them is the operator's work, not the tool's. A screener that runs unattended every week is a product; a decision log that needs a quarterly sit-down to mean anything is a second product wearing the first one's clothes. `/wheel-decide`, `/wheel-review`, and their modules move to `legacy/` intact — retired, not deleted, because the audit trail is the point | AGENTS.md §1 objectives 3 and 4; §5 build-order steps 5 and 6; Constitution Article XIII and §9.3/§9.4/§9.5; AL-OPS-05 marked retired in the Source Brief. **Open item:** §13.6's annual re-examination of §11.2 went out with Article XIII and has no replacement home |
 | 2026-08-16 | **AL-SEL-07 minted: ETF structural screen**, promoted into Source Brief v2.1 rather than logged here alone | The 2026-08-13 run filled all five Zone 1 slots with derivative-income ETFs (COYY 386%, TSYY 201%, YBTC 81%, BITY 57%, BAGY 38%). Option-premium distributions read to ST-SEL-06 as extraordinary dividends and structural NAV decay reads to ST-SEL-12 as a discount from the high, so the screen ranked capital destruction highest. Three Stage 1 disqualifiers — issuer pattern, 20% yield ceiling, null sector — bypassed by `universe.include`. Applied before the deep snapshot so a structured product costs zero provider calls. The ID went into the Source Brief because the code emits it as a citation, and §7.4 forbids citing a rule that has no definition | The 2026-08-11 note that "minting AL-SEL-07 would need a Source Brief amendment" — that amendment is now made |
 | 2026-08-11 | **FMP readmitted as a bounded null-fill fallback** over four allowlisted fields | The 2026-08-03 removal was right about the general case and §4.4 is unchanged, but a hard gate reading CANNOT_EVALUATE fails closed — a null `net_income_ttm` rejects a name on a data gap, not on its merits. Measured residual: 17 of 1,285 names, ~50 requests/run | "FMP fully removed" (2026-08-03); "FMP removal confirmed" (2026-08-04); the FMP gap-fill argument in the 2026-08-06 null-handling row |

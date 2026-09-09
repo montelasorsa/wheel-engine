@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Wheel Engine — weekly pipeline, Sundays at 18:00 local time.
+
+  screen → enrich → render → deliver. Every step is deterministic; there is no
+  model inference anywhere in this loop. It produces a file and mails it.
+
+  Install with scripts/install-schedule.sh, remove with
+  scripts/uninstall-schedule.sh. Installing is a MANUAL step — nothing in the
+  build installs this for you.
+
+  Paths below are absolute and machine-specific, the same convention config.yaml
+  follows (AGENTS.md §3). The install script refuses to run if the repo root
+  here disagrees with where the script actually lives.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.adventurelabs.wheel-engine</string>
+
+    <!--
+      launchd cannot chain commands, activate a virtualenv, or put today's date
+      in a log filename, so the job is one login shell running an inline script.
+      Working directory is set both here and by the `cd` below: WorkingDirectory
+      is what launchd honours, the `cd` is what makes the script readable and
+      what fails loudly into the bootstrap log if the repo has moved.
+    -->
+    <key>WorkingDirectory</key>
+    <string>/Users/montelasorsa/Developer/wheel-engine</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>
+set -uo pipefail
+
+REPO="/Users/montelasorsa/Developer/wheel-engine"
+LOG_DIR="/Users/montelasorsa/Developer/WheelOps/logs"
+
+cd "$REPO" || exit 1
+mkdir -p "$LOG_DIR" || exit 1
+
+# One log per run date. Appending rather than truncating keeps a re-run on the
+# same day next to the run it is re-running.
+exec &gt;&gt; "$LOG_DIR/launchd-$(date +%Y-%m-%d).log" 2&gt;&amp;1
+
+echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') — wheel-engine weekly run ==="
+
+# shellcheck disable=SC1091
+source .venv/bin/activate || exit 1
+
+commands/wheel-screen \
+  &amp;&amp; commands/wheel-enrich \
+  &amp;&amp; commands/wheel-render \
+  &amp;&amp; commands/wheel-deliver
+status=$?
+
+echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') — finished, exit $status ==="
+exit $status
+        </string>
+    </array>
+
+    <!--
+      Sunday at 18:00 local time. Weekday 0 is Sunday. launchd tracks the
+      machine's local time, so this follows daylight saving without help.
+
+      If the Mac is asleep or powered off at 18:00, launchd runs the job once
+      at the next opportunity rather than skipping the week.
+    -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>18</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!--
+      Schedule only. Without this, loading the agent — or logging in — would
+      immediately start a full universe scan.
+    -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!--
+      The safety net beneath the redirect above. Anything that goes wrong before
+      `exec` takes over the streams (a moved repo, an unwritable WheelOps) has
+      nowhere else to be recorded.
+    -->
+    <key>StandardOutPath</key>
+    <string>/Users/montelasorsa/Developer/WheelOps/logs/launchd-bootstrap.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/montelasorsa/Developer/WheelOps/logs/launchd-bootstrap.log</string>
+
+    <!-- A full run is minutes of paced network calls, not interactive work. -->
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
