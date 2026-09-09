@@ -130,6 +130,20 @@ enrichment:
   # reading about before it unlocks.
   include_locked_zones: true
 
+# Delivery (commands/wheel-deliver): where the rendered week goes once it is
+# built. The file copy is the artifact; the email is a convenience, and a
+# failed send never blocks the pipeline.
+delivery:
+  # Created if it does not exist. The filename is preserved, so last week's
+  # report sits next to this week's.
+  file_destination: ~/Downloads/wheel/
+  # Sent through Apple Mail via osascript, using the account already configured
+  # there. No SMTP settings and no password live in this file or anywhere else
+  # in the repo.
+  email_to: your.email@outlook.com
+  # false copies the file and skips the send. The escape hatch for testing.
+  email_enabled: true
+
 account:
   # AL-SEL-02 inputs. No broker link at pilot -- operator-maintained.
   # Constitution §11.2 uses $12,000 as the pilot working figure.

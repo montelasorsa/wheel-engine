@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# /wheel-deliver — copy the week's HTML out, then email it through Apple Mail.
+#
+# Last step of the weekly pipeline: screen → enrich → render → deliver.
+# Copies WheelOps/weeks/YYYY-MM-DD.html to delivery.file_destination
+# (default ~/Downloads/wheel/), then sends it as an attachment via osascript
+# to delivery.email_to. Set delivery.email_enabled: false to copy only.
+#
+# The file is the artifact; the email is a convenience. If Mail is closed or
+# the send fails, the error goes to stderr and this still exits 0 as long as
+# the copy landed — a delivery failure never blocks the pipeline.
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$REPO/.venv/bin/python"
+cd "$REPO"
+PYTHONPATH=src exec "$PY" -m wheel.deliver "$@"
