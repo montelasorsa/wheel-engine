@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# /wheel-render — frozen weekly markdown + sidecar → portable HTML document.
+# /wheel-render — frozen weekly markdown + sidecar + enrichment → portable HTML.
+#
+# Reads WheelOps/enrichment/YYYY-MM-DD/ when it exists and turns each enriched
+# monitored row into a click-to-expand company card. An absent enrichment
+# folder renders the plain report; the step is optional by construction.
+# Over the 200KB size target the renderer warns on stderr and notes it in the
+# report footer -- it never deletes the week's output to enforce a target.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="$REPO/.venv/bin/python"
