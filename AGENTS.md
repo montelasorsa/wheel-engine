@@ -24,7 +24,7 @@ The tool **proposes**. The operator **decides**. Nothing executes a trade.
 |---|---|---|---|
 | Strategy Constitution | **v2.1** | `governance/CONSTITUTION.md` | Binding rules. When code and Constitution disagree, Constitution wins. |
 | ScottishTrader Source Brief | **v2.1** | `governance/SOURCE-BRIEF.md` | Rule definitions, rationale, gap register. Every rule ID lives here. |
-| Investment Proposal | **v1.1** | `governance/PROPOSAL.md` | Architecture, validation criteria, sizing logic. |
+| Investment Proposal | **v1.2** | `governance/PROPOSAL.md` | Architecture, validation criteria, sizing logic. |
 | Distilled Reddit Transcripts | v1.0 | `governance/DISTILLED-TRANSCRIPTS.md` | Primary source. Read-only reference, not cited directly by code. |
 | This file | **v2.0** | repo root | Agent instructions. |
 

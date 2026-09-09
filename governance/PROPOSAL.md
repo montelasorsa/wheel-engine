@@ -1,6 +1,6 @@
 ---
-VERSION: 1.1
-DATE: 2026-08-03
+VERSION: 1.2
+DATE: 2026-08-XX
 SUPERSEDES: Investment Proposal v1.0 (July 2026, `adventure-labs-wheel-engine-proposal-v1.pdf`)
 STATUS: canonical
 DELIVERABLE: 3 of 8
@@ -277,7 +277,7 @@ treated as a risk control rather than a return driver.
 | **Event clustering** *(new v1.1)* | Two or more positions reporting the same week | Flag at screen and at entry (AL-SIZ-04) | Display only, not a block. Low. |
 | Broad market crash | Multiple positions challenged simultaneously; reserve consumed | 50% reserve; position-by-position triage; explicit cap on assignments taken (ST-EVT-01/02/03) | Managed, not eliminated. Drawdown expected. |
 | Capped upside | Underlying rallies past covered call strike | None — this is the premium being sold | Designed property. Opportunity cost, not loss. |
-| Operator error | Panic close, premature exit, rule override under stress | Written Constitution; amendment freeze during unrealized losses (AL-OPS-03); mandatory decision record with prediction (AL-OPS-05) | The source identifies impatience as the largest single loss source (ST-PHI-01). |
+| Operator error | Panic close, premature exit, rule override under stress | Written Constitution; amendment freeze during unrealized losses (AL-OPS-03); every trade event logged as it happens, with the rule ID that triggered it (Const. §9.1, §9.2) | The source identifies impatience as the largest single loss source (ST-PHI-01). Residual is higher than v1.1 claimed: the prediction log that was to measure override quality is retired, and logging records a decision without scoring it. |
 | Liquidity | Wide spreads degrade fills, particularly on rolls | Open-interest screening (ST-SEL-13); limit orders only; never market orders (ST-ORD-03) | Low at selected names; monitored. |
 | Tax drag | Premium is short-term capital gain, taxed as ordinary income, unwithheld | 35% of realized gains segregated within 7 days; quarterly estimates (AL-OPS-01) | Material — see §5.3. |
 
@@ -372,8 +372,8 @@ Two properties matter more than the numbers:
 **Out-of-zone names are displayed, not hidden** (AL-SEL-03). A candidate above the zone ceiling
 appears in output with its concentration figure and the account size at which it unlocks. Hiding
 higher zones removes the growth ladder; unlocking them removes the sizing discipline. Displaying and
-locking does both. Entry requires an explicit override with a logged prediction (Const. §9.3), so the
-exception is measured rather than merely permitted.
+locking does both. Entry requires an explicit override, logged at the time of the trade with the
+rule ID it departs from (Const. §9.1), so the exception is recorded rather than merely permitted.
 
 **Share price and market cap are separate filters** (AL-SEL-06). Price governs sizing; market cap
 governs quality, liquidity, and gap risk. Conflating them is how a screen rejects a sound $15
@@ -418,8 +418,9 @@ All gains net of the tax reserve compound until the account reaches $30,000; no 
 before that threshold. Between $30,000 and $60,000 the position count rises and per-name exposure
 falls toward policy. Above $60,000 the full 5% discipline becomes operative and the program reaches
 its designed risk profile. **The zone formula in §4.3 makes this a continuous function of account
-size rather than a series of future amendments** — and Const. §13.6 requires the pilot-scale
-mitigations to be retired by explicit amendment rather than allowed to lapse.
+size rather than a series of future amendments** — and the pilot-scale mitigations are retired by
+explicit amendment under Const. Article X rather than allowed to lapse. The annual prompt that used
+to schedule that review went out with Article XIII; nothing now raises the question on a timer.
 
 ---
 
@@ -518,11 +519,12 @@ prepared for. Characterising the envelope in advance is what makes it survivable
 
 **Track C — Paper trading with logged reasoning**
 **This is the actual validation gate.** Minimum 60 days, live market prices, full position logging,
-and — critically — a written rationale **with a prediction** for every judgment call: tenor selection
-within the 30–45 band, roll conviction, triage decisions (AL-OPS-05, Const. §9.3).
+and a written rationale for every judgment call: tenor selection within the 30–45 band, roll
+conviction, triage decisions. Each names the rule ID it acted under (Const. §9.1).
 *What it validates:* whether the operator executes the rule set consistently under live conditions.
-The reasoning log is simultaneously the validation artifact and the evaluation set for the decision-
-support layer described in §7.
+The reasoning log is the validation artifact. It is no longer also an evaluation set — the tooling
+that would have scored predictions against outcomes is retired, and reading the log back is the
+operator's work rather than the tool's.
 
 ### 6.3 Pass / fail criteria for capital deployment
 
@@ -531,7 +533,7 @@ support layer described in §7.
 | 1 | Track A mechanical floor positive across full period including 2020 and 2022 | Positive annualised return, both stress windows | Do not deploy. Strategy assumptions are wrong. |
 | 2 | Track A maximum drawdown | ≤ 25% peak-to-trough | Deploy at reduced size; re-examine sizing policy. |
 | 3 | Track C rule compliance | ≥ 90% of decisions traceable to a rule ID | Extend paper trading. Operator is improvising. |
-| 4 | Track C decision-record completeness | 100% of judgment calls logged **with prediction** at time of decision | Extend paper trading. **Non-negotiable.** |
+| 4 | Track C trade-log completeness | 100% of trade events logged **at the time they occur**, each carrying the rule ID that triggered the action (Const. §9.1, §9.2) | Extend paper trading. **Non-negotiable** — §9.2 holds that an unlogged trade did not happen. |
 | 5 | Track C reserve discipline | Deployment never exceeds 65%; average ≤ 50% | Extend paper trading. This is the load-bearing control. |
 | 6 | Track C assignment frequency | Consistent with 2–3/yr book rate, regime-adjusted | Investigate selection or roll execution before deploying. |
 | 7 | Track B envelope documented and accepted | Operator has stated in writing the drawdown they will hold through | Do not deploy. Unprepared operators exit at the bottom. |
@@ -576,12 +578,12 @@ layer because it is the only nondeterministic boundary in the system.
 | **0 · Acquisition** | Provider-isolated fetch; raw response written timestamped to durable snapshot storage | Fetch and write. **No interpretation whatsoever.** | Records. Never scores. |
 | **1 · Rules engine** | Deterministic code; no model inference | Selection screening against the ST-SEL set, zone derivation, sector and clustering checks, contract sizing against reserve, net stock cost arithmetic, GTC order construction, DTE and delta filters, roll productivity floor at ≈$0.01, compliance monitoring | Executes. Fully auditable. |
 | **2 · Decision support** | Model inference, Constitution-grounded | Presents structured options for ambiguous calls — roll conviction, crash triage, thesis-break assessment — each mapped to a governing rule ID with reasoning stated | **Proposes only. Never executes.** |
-| **3 · Operator** | Human | Approves, rejects, or overrides. Overrides logged with prediction. | **Sole execution authority.** |
+| **3 · Operator** | Human | Approves, rejects, or overrides. Overrides logged with the rule ID they depart from. | **Sole execution authority.** |
 
 ### 7.4 Snapshot-then-score
 
 **Layer 0 never hands live data to Layer 1.** Market data is fetched, written timestamped to durable
-storage, and scored *from the snapshot* (AL-OPS-06, Const. §9.5).
+storage, and scored *from the snapshot* (AL-OPS-06).
 
 This is architectural rather than incidental, and it buys three things that are otherwise
 unavailable:
@@ -605,33 +607,30 @@ the product. Novel strategic reasoning at the position level is the failure mode
 — **Ambiguity is surfaced, not resolved.** Where the rule set genuinely does not determine an answer,
 the correct output is a stated set of options with tradeoffs — not a recommendation with false
 confidence (Const. §7.6).
-— **Operator overrides accumulate into an evaluation set.** Systematic divergence between
-recommendation and operator decision is the primary input to the quarterly review (Const. §13.3).
-
 ### 7.6 The learning loop, correctly scoped
 
 At roughly 30 closed positions a year, **statistical outcome-tuning is curve-fitting.** The learning
-mechanism is therefore qualitative rule amendment, not parameter optimization (Const. §13.4).
+mechanism is therefore qualitative rule amendment, not parameter optimization (ST-PER-04).
 
-Three components, none of which are new infrastructure:
-
-1. **Calibration** — predicted versus actual, from the prediction field in the decision record.
-2. **Divergence** — where the operator acted against the rule-implied action, and what followed.
-3. **Rule-gap detection** — decisions with no governing rule ID; each is either a missing rule or a
-   correctly identified judgment call.
-
-All three feed Constitution Article XIII on the quarterly cadence, which feeds Article X amendments.
-**Article X already was the learning loop; v1.1 simply names it.**
+**Article X is the learning loop.** v1.1 named it and then proposed to feed it: a calibration report
+of predicted against actual, a divergence tally, and rule-gap detection, all scored on the Article
+XIII quarterly cadence. That machinery is retired and Article XIII with it. What remains is the
+trade ledger, the amendment discipline in Article X, and an operator reading one against the other.
+This is a smaller claim than v1.1 made and a more honest one — the tool never did the judging, and
+it no longer pretends to schedule it either.
 
 ### 7.7 Evaluation is two tracks, not one
 
-Conflating them is a category error:
+Conflating them is a category error, and the distinction outlives the tooling that once sat on both
+sides of it:
 
 — **Tool evaluation** — does the deterministic layer still produce the correct output for a known
-input? Golden files against frozen snapshots. Catches scorer drift. Automatable.
-— **Judgment evaluation** — was the decision good? Replay of logged past decisions, scored against
-outcomes. Every logged decision is a free test case. Not automatable, and not statistically powered
-at this n — it produces amendment candidates, not p-values.
+input? Golden files against frozen snapshots. Catches scorer drift. Automatable, and automated.
+— **Judgment evaluation** — was the decision good? Not automatable, not statistically powered at
+this n, and **no longer inside the tool.** v1.1 proposed replaying logged decisions against
+outcomes; at 30 closed positions a year that never earned the machinery it needed. Judgment
+evaluation is the operator's work, done against the trade ledger, and it yields amendment
+candidates rather than p-values.
 
 ### 7.8 Data and infrastructure
 
@@ -734,11 +733,13 @@ policy already accommodates. **This risk degrades the program; it does not break
 
 ### 9.3 "Judgment-dependence makes results unattributable."
 
-**Conceded, and structurally addressed.** If the roll decision depends on operator conviction,
-outcomes cannot be cleanly attributed to the rule set. Hence the decision record with a required
-prediction on every judgment call (AL-OPS-05), and the mechanical floor in Track A as a comparison
-baseline — together making the judgment layer's contribution measurable over time, positive or
-negative. The program cannot eliminate judgment dependence; **it can make it auditable.**
+**Conceded, and partly addressed.** If the roll decision depends on operator conviction, outcomes
+cannot be cleanly attributed to the rule set. Two things narrow the gap: every trade event is logged
+as it happens with the rule ID that triggered it (Const. §9.1, §9.2), and the mechanical floor in
+Track A stands as a comparison baseline. v1.1 claimed more — a required prediction on every judgment
+call, making the judgment layer's contribution measurable over time. That mechanism is retired and
+the claim retires with it. The program cannot eliminate judgment dependence and no longer claims to
+measure it; **it can make it auditable.**
 
 ### 9.4 "The returns don't justify the operator time."
 
@@ -790,9 +791,9 @@ alternative.
 | **0 · Foundation** | Weeks 1–3 | Schwab Level 3 approval; dedicated account funded; three-bucket cash structure; **Constitution v2.0 adopted and signed**; Deliverable 6 build spec drafted *after* §7 is settled | Account live; rules signed; spec complete |
 | **1 · Universe research** | Weeks 2–5 | Four-stage protocol (§8.3); `notes/<TICKER>.md` per name; proposal reissued as **v2.0** with §8 completed | 3–5 names with written business cases and kill-switch conditions |
 | **2 · Track A + B** | Weeks 4–10 | Paid historical source procured; mechanical floor simulation across 2019–2025; risk envelope characterisation; drawdown tolerance stated in writing | Criteria 1, 2, 7 assessed |
-| **3 · Track C** | Weeks 6–16 | 60+ days live-price paper trading; full position and decision logs with predictions; Layer 1 rules engine running in monitoring mode alongside | Criteria 3–6, 8 met |
+| **3 · Track C** | Weeks 6–16 | 60+ days live-price paper trading; full position and reasoning logs; Layer 1 rules engine running in monitoring mode alongside | Criteria 3–6, 8 met |
 | **4 · Micro-live** | Weeks 16–20 | $5,000 deployed; 1–2 concurrent positions; manual execution; Layer 2 decision support introduced in advisory mode | 30 days at ≥90% compliance with real capital |
-| **5 · Full pilot** | Week 20+ | Scale to $9–15K; 3–5 names in rotation; monthly reconciliation; **quarterly review under Constitution Article XIII** | Ongoing — compliance thresholds remain live |
+| **5 · Full pilot** | Week 20+ | Scale to $9–15K; 3–5 names in rotation; monthly reconciliation; **quarterly amendment window under Constitution Article X** | Ongoing — compliance thresholds remain live |
 
 Phases 1 and 2 run concurrently; Phase 3 requires a named universe from Phase 1. **The gating
 discipline that matters: no capital deploys until Track C compliance thresholds are met, regardless
@@ -803,9 +804,9 @@ cannot be backtested is not evidence the operator can execute it.
 
 ## Appendix A — Rule Reference
 
-Every parameter and control in this document traces to a rule identifier in **Source Brief v2.0**
+Every parameter and control in this document traces to a rule identifier in **Source Brief v2.1**
 (`ST-` for source methodology, `AL-` for AdVenture Labs additions) or to an Article of **Strategy
-Constitution v2.0**. Identifiers are cited inline throughout. Deliverable 6 maps each identifier to
+Constitution v2.1**. Identifiers are cited inline throughout. Deliverable 6 maps each identifier to
 its implementation in the rules engine.
 
 **Load-bearing rules for this proposal:**
@@ -818,9 +819,9 @@ its implementation in the rules engine.
 | ST-SEL-10 | High IV disqualifies |
 | ST-PER-04 | Backtest limitation — why validation is paper trading |
 | ST-SEL-09 | Willingness to own — precondition for the entire risk argument |
-| AL-OPS-05 | Decision record with prediction — the only mechanism making any of the above measurable |
 | Const. Article XII | Regime-conditional returns |
-| Const. Article XIII | Quarterly review cadence |
+| Const. Article X | Amendment — in writing, with a stated hypothesis, on a fixed quarterly cadence |
+| Const. Article IX §9.1–§9.2 | Trade logging as a precondition of the trade — what makes any of the above auditable |
 
 ## Appendix B — Open Gaps Affecting This Proposal
 
@@ -842,6 +843,7 @@ Carried from Source Brief v2.0, Part IV. Listed here because each one bounds a c
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | Jul 2026 | Initial proposal. Cited governance documents that did not yet exist. |
+| **1.2** | **2026-08-XX** | Realigned to Constitution v2.1 and the retirement of Layer 2 decision-support. Every reference to Article XIII, §13.3, §13.4, §13.6, §9.3 and §9.5 resolved: retired features deleted (§7.5 override-evaluation bullet, §7.6 calibration/divergence/rule-gap components, Appendix A's AL-OPS-05 row), surviving concepts rewritten without the retired mechanism (§6.2 Track C, §6.3 criterion 4, §7.3 Layer 3, §9.3 objection, §10 Phase 3), and surviving governance recited against what exists — Article X for the amendment cadence, Article IX §9.1–§9.2 for trade logging (§3.2, §4.3, §4.6, §10 Phase 5). **Two claims are deliberately weaker than in v1.1:** §9.3 no longer says the judgment layer's contribution is measurable, only auditable; §7.6 no longer promises a scheduled learning loop. §7 architecture, §4 sizing, §5 returns and §8 universe are otherwise unchanged. |
 | **1.1** | **2026-08-03** | All citations realigned to Source Brief v2.0 and Constitution v2.0 (corrected from v2.1). §7 rewritten: four-layer design with acquisition layer, snapshot-then-score, convergence constraint, reporting surface removed, learning loop and two-track evaluation added. §4.3 zones and §4.4 sector construction added. §4.2 terminology corrected (monitored / thesis-backed / concurrent). §8.1 expanded to 13 criteria; §8.3 Stage 4 promoted to a gate. §6.3 criterion 8 added. §9.6 objection added. Appendix B added. Reissue trigger for v2.0 restated. |
 
 ---
