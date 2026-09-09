@@ -1,6 +1,6 @@
 ---
-VERSION: 2.0
-DATE: 2026-08-03
+VERSION: 2.1
+DATE: 2026-08-XX
 SUPERSEDES: Strategy Constitution v1.0 (July 2026, `adventure-labs-strategy-constitution-v1.md`)
 STATUS: canonical
 MODULE: 1 — The Wheel Engine
@@ -10,7 +10,7 @@ BINDING_REFERENCE: Source Brief v2.0
 # AdVenture Labs — Strategy Constitution
 
 **Module 1: The Wheel Engine**
-Version 2.0 · Established July 2026 · Revised August 2026
+Version 2.1 · Established July 2026 · Revised August 2026
 Owner: Monte
 
 ---
@@ -307,19 +307,10 @@ triggered the action. *(ST-ENT-06, ST-CC-06)*
 **§9.2** **A trade that is not logged did not happen** and cannot be evaluated. Logging is a
 precondition of the trade, not an afterthought.
 
-**§9.3** **Every judgment call is logged with a prediction.** *(AL-OPS-05)* Roll conviction, tenor
-selection within the band, crash triage, kill-switch assessment, and any override under §2.3 each
-record: the governing rule ID, the action taken, the alternatives considered, and **what I expect to
-happen.** Outcomes attach on close.
-
-A rationale without a prediction cannot be scored, only re-read. The prediction field is what turns
-the decision log from a diary into an evaluation set.
-
-**§9.4** Where a decision diverges from the rule-implied action, the divergence is recorded as such.
-Systematic divergence is the primary input to Article XIII.
-
-**§9.5** Market data is snapshotted before it is scored. Decisions reference the snapshot, not a
-live quote. *(AL-OPS-06)* A decision that cannot be reproduced cannot be reviewed.
+*Removed in v2.1: §9.3 (prediction field), §9.4 (divergence logging), and §9.5 (decisions
+reference a snapshot) went out with Article XIII and the decision log. AL-OPS-06 still governs the
+screener — market data is snapshotted before it is scored — but it now binds the tool's own
+pipeline rather than a decision record. See the v2.1 Change Log entry.*
 
 ---
 
@@ -327,7 +318,7 @@ live quote. *(AL-OPS-06)* A decision that cannot be reproduced cannot be reviewe
 
 **§10.1** This Constitution may be amended only:
 - In writing, with the change and its rationale documented
-- On the **fixed quarterly review cadence** defined in Article XIII
+- On a **fixed quarterly cadence**, never on the day a change is wanted
 - **Never** while any position is in an unrealized loss
 - **Never** within 72 hours of a losing outcome
 
@@ -338,6 +329,12 @@ under emotional pressure are how systematic strategies become discretionary ones
 
 **§10.3** Amendments require a stated hypothesis and a defined way to evaluate whether the change
 helped. "It feels better" is not a rationale.
+
+The evaluation is now external to the tool. v2.0 expected a decision log and a calibration report to
+supply it; v2.1 retires both, and the hypothesis is written, tested, and judged by the operator
+against the trade ledger and the record of the amendment itself. **What is required is unchanged —
+a hypothesis and a way to tell whether it held. Only the mechanism that was going to check it is
+gone**, and an amendment offered without one is still refused.
 
 **§10.4** An amendment that loosens a rule requires evidence that the rule was wrong. An amendment
 that tightens a rule requires only that it not conflict with an existing Article. **The asymmetry is
@@ -429,41 +426,6 @@ approximately 13% net. **The after-tax number is the honest one.** *(AL-OPS-01)*
 
 ---
 
-## Article XIII — Review Cadence
-
-*New in v2.0. Cited by Proposal §10, Phase 5.*
-
-**§13.1** **Weekly** — the operating loop. Screen, review open positions against Article IV, verify
-reserve against §1.3, log decisions per Article IX. No rules change at weekly cadence.
-
-**§13.2** **Monthly** — reconciliation. Verify ledger against broker statements. Confirm net stock
-cost on every held name. Compute assignment capacity. Compare compliance rate against the ≥90%
-threshold. No rules change at monthly cadence.
-
-**§13.3** **Quarterly** — the only cadence at which this document may change, subject to Article X.
-The quarterly review produces four inputs, in this order:
-
-1. **Calibration.** Predicted versus actual, across logged decisions. Are the predictions in §9.3
-   any good?
-2. **Divergence.** Where did I act against the rule-implied action, and what happened? *(§9.4)*
-3. **Rule gaps.** Which decisions had no governing rule ID? Each is either a missing rule or a
-   correctly identified judgment call under §7.6.
-4. **Regime.** Which column of §12.2 was this quarter, recorded before performance is examined.
-
-**§13.4** **Learning at this trade volume means qualitative rule amendment, not statistical tuning.**
-At roughly 30 closed positions a year, fitting parameters to outcomes is curve-fitting with extra
-steps. The output of a quarterly review is a proposed amendment with a hypothesis — never a
-re-optimized threshold. *(ST-PER-04)*
-
-**§13.5** A quarter that produces no amendment is a normal quarter and is recorded as such. The
-cadence exists to create an opportunity for change, not an obligation.
-
-**§13.6** **Annually** — re-examine Article XI §11.2. If the account has grown such that the 5%
-policy is achievable, the pilot-scale mitigations in §11.3 are retired by amendment rather than
-allowed to lapse silently.
-
----
-
 ## Article XIV — Scope
 
 **§14.1** This Constitution governs Module 1 (equity Wheel) only. Module 2 and subsequent AdVenture
@@ -493,6 +455,7 @@ under pressure does not get a vote.
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | Jul 2026 | Initial draft. Articles I–XI. No rule ID citations. |
+| **2.1** | **2026-08-XX** | **Article XIII (Review Cadence) removed in full. Article IX §9.3 (prediction field), §9.4 (divergence logging) and §9.5 (snapshot reference for decisions) removed.** The decision log and the calibration harness that scored it are retired; the screener is the sole product. §10.1's cadence survives as a bare quarterly constraint, no longer pointing at a deleted Article. §10.3 keeps its requirement of a stated hypothesis and softens the mechanism — evaluation is the operator's work, external to the tool. Source Brief AL-OPS-05 marked retired, text preserved for the audit trail. **§13.6's annual re-examination of §11.2 is lost with Article XIII and is not replaced here** — see the open item in AGENTS.md §10. |
 | **2.0** | **2026-08-03** | Added Article XI (Portfolio Construction), XII (Return Expectations), XIII (Review Cadence); Scope moved to XIV. **Amendment retained at Article X.** Every Article now cites Source Brief v2.0 rule IDs. §2.3 fixed price band replaced with derived zones. Added §2.4 market cap, §2.6 chart position, §2.7 IV disqualifier, §2.11 thesis gate, §3.4 assignment capacity display, §4.10 no-DTE-management, §9.3 prediction field, §10.4/§10.5 amendment asymmetry and notice period. |
 
 ---

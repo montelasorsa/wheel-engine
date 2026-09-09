@@ -10,11 +10,9 @@ Supersedes: AGENTS.md v1.0
 A personal options trading operations tool for a systematic weekly Wheel workflow.
 Owner: Monte. Module 1 of AdVenture Labs.
 
-Four objectives:
+Two objectives:
 1. Stock screening against a written rule set
 2. Cash management and position tracking
-3. Decision log with predictions
-4. Self-evaluation — calibrate past decisions and surface amendment candidates
 
 The tool **proposes**. The operator **decides**. Nothing executes a trade.
 
@@ -24,7 +22,7 @@ The tool **proposes**. The operator **decides**. Nothing executes a trade.
 
 | Document | Version | Location | Role |
 |---|---|---|---|
-| Strategy Constitution | **v2.0** | `governance/CONSTITUTION.md` | Binding rules. When code and Constitution disagree, Constitution wins. |
+| Strategy Constitution | **v2.1** | `governance/CONSTITUTION.md` | Binding rules. When code and Constitution disagree, Constitution wins. |
 | ScottishTrader Source Brief | **v2.1** | `governance/SOURCE-BRIEF.md` | Rule definitions, rationale, gap register. Every rule ID lives here. |
 | Investment Proposal | **v1.1** | `governance/PROPOSAL.md` | Architecture, validation criteria, sizing logic. |
 | Distilled Reddit Transcripts | v1.0 | `governance/DISTILLED-TRANSCRIPTS.md` | Primary source. Read-only reference, not cited directly by code. |
@@ -48,7 +46,7 @@ is retired in v2.0 — see Source Brief Appendix B for the crosswalk.
 ├── src/wheel_mcp/server.py            MCP server — NOT YET BUILT (expected, not a bug)
 ├── tests/                             unit + golden-file tests for Layer 1
 │   └── golden/                        seeded with README, NO BASELINE FROZEN YET
-├── commands/                          entry points: /wheel-screen, /wheel-decide, /wheel-review
+├── commands/                          entry points: /wheel-screen, /wheel-enrich, /wheel-render, /wheel-deliver
 ├── skills/                            Layer 2 — SOP procedures, Claude reads these as instructions
 ├── docs/                              architecture docs, DECISIONS.md
 ├── governance/                        Constitution, Source Brief, Proposal, Transcripts
@@ -120,13 +118,9 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 3. **Layer 1 scorers** — screening filters mapped to ST-SEL-01 through ST-SEL-14 + AL-SEL-02
    through AL-SEL-06. Zone derivation. Sector checks. Each scorer has a golden-file test.
 4. **`/wheel-screen` command** — end-to-end: fetch → snapshot → score → produce `weeks/YYYY-MM-DD.md`
-5. **`/wheel-decide` command** — present structured options for a judgment call (roll, assignment,
-   thesis assessment), log the decision with prediction to `WheelOps/decisions/`.
-6. **`/wheel-review` command** — reconcile: attach outcomes to past predictions, surface
-   calibration and divergence for quarterly review.
-7. **`wheel_mcp/server.py`** — MCP wrapper for Layer 2 use (Claude pulls data mid-conversation).
+5. **`wheel_mcp/server.py`** — MCP wrapper for Layer 2 use (Claude pulls data mid-conversation).
    Deferred until Layer 2 is live — the CLI path through Layer 0 is built first.
-8. **Golden-file baseline freeze** — needs a real full-universe run to produce.
+6. **Golden-file baseline freeze** — needs a real full-universe run to produce.
 
 ---
 
@@ -205,6 +199,7 @@ Decisions made in conversation that aren't yet in governance docs. Newest first.
 
 | Date | Decision | Rationale | Supersedes |
 |---|---|---|---|
+| 2026-08-XX | **Retired Layer 2 decision-support.** Screener is now the sole product. Constitution Article XIII removed. Article IX §9.3/§9.4 removed | The decision log and the calibration harness were built to make judgment measurable, but evaluating them is the operator's work, not the tool's. A screener that runs unattended every week is a product; a decision log that needs a quarterly sit-down to mean anything is a second product wearing the first one's clothes. `/wheel-decide`, `/wheel-review`, and their modules move to `legacy/` intact — retired, not deleted, because the audit trail is the point | AGENTS.md §1 objectives 3 and 4; §5 build-order steps 5 and 6; Constitution Article XIII and §9.3/§9.4/§9.5; AL-OPS-05 marked retired in the Source Brief. **Open item:** §13.6's annual re-examination of §11.2 went out with Article XIII and has no replacement home |
 | 2026-08-16 | **AL-SEL-07 minted: ETF structural screen**, promoted into Source Brief v2.1 rather than logged here alone | The 2026-08-13 run filled all five Zone 1 slots with derivative-income ETFs (COYY 386%, TSYY 201%, YBTC 81%, BITY 57%, BAGY 38%). Option-premium distributions read to ST-SEL-06 as extraordinary dividends and structural NAV decay reads to ST-SEL-12 as a discount from the high, so the screen ranked capital destruction highest. Three Stage 1 disqualifiers — issuer pattern, 20% yield ceiling, null sector — bypassed by `universe.include`. Applied before the deep snapshot so a structured product costs zero provider calls. The ID went into the Source Brief because the code emits it as a citation, and §7.4 forbids citing a rule that has no definition | The 2026-08-11 note that "minting AL-SEL-07 would need a Source Brief amendment" — that amendment is now made |
 | 2026-08-11 | **FMP readmitted as a bounded null-fill fallback** over four allowlisted fields | The 2026-08-03 removal was right about the general case and §4.4 is unchanged, but a hard gate reading CANNOT_EVALUATE fails closed — a null `net_income_ttm` rejects a name on a data gap, not on its merits. Measured residual: 17 of 1,285 names, ~50 requests/run | "FMP fully removed" (2026-08-03); "FMP removal confirmed" (2026-08-04); the FMP gap-fill argument in the 2026-08-06 null-handling row |
 | 2026-08-11 | Universe comes from the **CBOE options symbol directory**, not S&P index constituents | Index membership correlates with optionability but does not decide it, and a name without listed options cannot be wheeled at all. Measured on the 2026-08-11 run: 34 screened names had no CBOE-listed options, including the top-ranked monitored name. Universe 1,506 → 5,334 | S&P 500/400/600 scraping (moved to `legacy/universe_source_wikipedia.py`) |
