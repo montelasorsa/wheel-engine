@@ -1,7 +1,17 @@
-# Decision Record Schema
+# Decision Record Schema — RETIRED
 
-**Version 1.0 · 2026-08-04**
-Implements: AL-OPS-05, Constitution §9.3, §9.4
+**Version 1.0 · 2026-08-04 · RETIRED 2026-08-XX**
+Implemented: AL-OPS-05, Constitution §9.3, §9.4 — **all three are retired.**
+
+> **This document describes code that no longer runs.** Layer 2 decision-support was retired
+> when the screener became the sole product. `/wheel-decide`, `/wheel-review` and their modules
+> live in `legacy/`; Constitution Article XIII and §9.3–§9.5 are removed as of v2.1; Source Brief
+> AL-OPS-05 is marked retired. The text below is preserved unchanged as the audit trail for what
+> was built and why — it is not a specification for anything current.
+>
+> What survives is Constitution §9.1 and §9.2: every trade event is logged as it happens with the
+> rule ID that triggered it, and a trade that is not logged did not happen. That is trade logging,
+> not decision logging, and it has no prediction field.
 
 ---
 

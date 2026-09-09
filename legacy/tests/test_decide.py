@@ -1,7 +1,7 @@
 """Tests for /wheel-decide: schema validation, ID sequencing, and the CLI.
 
 The CLI is driven with scripted prompts against a temporary WheelOps sibling;
-every appended line is validated against docs/decision-record-schema.md via
+every appended line is validated against legacy/docs/decision-record-schema.md via
 `validate_decision_record`. No network, no real WheelOps.
 """
 

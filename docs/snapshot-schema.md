@@ -12,10 +12,13 @@ A snapshot is the reproducible market state for one ticker on one date. It is th
 **only** input the Layer 1 scorers read. `wheel_mcp.yahoo` produces it; the gates
 and score filters consume it and nothing else.
 
-**Format:** `YYYY-MM-DD_TICKER.json` — the exact name `snapshot_ref` points at in
-the [decision record schema](decision-record-schema.md) field 11. That link is
-what makes a logged decision replayable: given the decision and its snapshot, the
-verdict can be recomputed without re-fetching anything.
+**Format:** `YYYY-MM-DD_TICKER.json`. The name is the whole addressing scheme: a
+date and a ticker are enough to find the exact input any past run scored, so a
+verdict can be recomputed without re-fetching anything. The format was originally
+fixed to match `snapshot_ref` in the now-retired
+[decision record schema](../legacy/docs/decision-record-schema.md) field 11; the
+schema is gone and the format stays, because reproducibility never depended on
+the decision log (AL-OPS-06).
 
 Two rules hold the contract together:
 

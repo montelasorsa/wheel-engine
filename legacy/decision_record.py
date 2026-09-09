@@ -1,6 +1,7 @@
 """Decision records: the pure core of /wheel-decide.
 
-Implements docs/decision-record-schema.md (AL-OPS-05, Constitution §9.3/§9.4):
+Implements legacy/docs/decision-record-schema.md (AL-OPS-05, Constitution
+§9.3/§9.4 — all retired; this module is kept as an audit trail, not as live code):
 twelve required fields written at decision time, append-only JSONL, outcomes
 attached later as separate OUT- lines by /wheel-review (§5.6, not built here).
 

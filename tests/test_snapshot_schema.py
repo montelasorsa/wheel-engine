@@ -51,7 +51,9 @@ class GoldenFileTests(unittest.TestCase):
         self.assertEqual(validate_snapshot(load(ETF_GOLDEN)), ())
 
     def test_golden_filenames_match_the_snapshot_ref_format(self) -> None:
-        # decision-record-schema.md field 11: snapshot_ref is YYYY-MM-DD_TICKER.json
+        # legacy/docs/decision-record-schema.md field 11 fixed this format:
+        # snapshot_ref is YYYY-MM-DD_TICKER.json. The schema is retired; the
+        # format is load-bearing on its own (AL-OPS-06) and stays pinned here.
         document = load(EQUITY_GOLDEN)
         self.assertEqual(
             snapshot_filename(document["snapshot_date"], document["ticker"]),
