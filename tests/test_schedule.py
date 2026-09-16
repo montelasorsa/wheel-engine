@@ -55,9 +55,11 @@ class PlistTests(unittest.TestCase):
         self.assertEqual(plist()["Label"], LABEL)
         self.assertEqual(PLIST.stem, LABEL)
 
-    def test_it_runs_sunday_at_six(self) -> None:
+    def test_it_runs_sunday_morning(self) -> None:
+        """Morning, so a ~5h cold run has the whole day rather than the night."""
+
         self.assertEqual(
-            plist()["StartCalendarInterval"], {"Weekday": 0, "Hour": 18, "Minute": 0}
+            plist()["StartCalendarInterval"], {"Weekday": 0, "Hour": 8, "Minute": 0}
         )
 
     def test_it_does_not_run_at_load(self) -> None:

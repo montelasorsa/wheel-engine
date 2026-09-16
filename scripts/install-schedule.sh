@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Install the Sunday 18:00 weekly pipeline as a launchd user agent.
+# Install the Sunday 08:00 weekly pipeline as a launchd user agent.
 #
 # MANUAL STEP. Nothing in the build runs this. Run it when you are ready for
 # the pipeline to go live, and read scripts/com.adventurelabs.wheel-engine.plist
@@ -20,7 +20,7 @@
 #   * A cron job that comes due while the Mac is asleep is simply missed.
 #     launchd runs a missed StartCalendarInterval job at the next opportunity,
 #     which matters for a schedule that fires once a week — a sleeping laptop
-#     at 18:00 on Sunday would silently cost the whole run.
+#     at 08:00 on Sunday would silently cost the whole run.
 #   * cron predates the macOS privacy model. A job that drives Mail through
 #     AppleScript needs an Automation grant, and those are attributed to the
 #     launching process. A launchd agent is a first-class prompt-and-grant
@@ -75,13 +75,20 @@ echo
 launchctl print "$DOMAIN/$LABEL" 2>/dev/null | grep -E "state|runs|last exit" || true
 echo
 cat <<EOF
-Scheduled: Sundays at 18:00 local time.
+Scheduled: Sundays at 08:00 local time.
 Pipeline:  screen -> enrich -> render -> deliver -> backup
 Logs:      $LOG_DIR/launchd-YYYY-MM-DD.log
 
 The first run will ask for permission to control Mail. Approve it, or the
 email step fails and only the file copy lands — which is by design, but you
 will want the email.
+
+It may also ask to write to ~/Downloads. Approve that one too: the file copy
+is the artifact, and it is the ONE delivery failure that is fatal.
+
+Failure notifications post as "Script Editor" in Notification Center. If you
+have never let it notify you, check System Settings > Notifications before
+relying on the alert. The log below records every failure either way.
 
 Run it once by hand to check the whole chain before Sunday:
   launchctl kickstart -p $DOMAIN/$LABEL

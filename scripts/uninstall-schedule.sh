@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Remove the Sunday 18:00 weekly pipeline from launchd.
+# Remove the Sunday 08:00 weekly pipeline from launchd.
 #
 # Undoes scripts/install-schedule.sh: hands the job description back to
 # launchd with `launchctl bootout`, then deletes the installed plist. See the

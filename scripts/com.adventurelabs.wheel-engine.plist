@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Wheel Engine — weekly pipeline, Sundays at 18:00 local time.
+  Wheel Engine — weekly pipeline, Sundays at 08:00 local time.
 
   screen → enrich → render → deliver → backup. Every step is deterministic;
   there is no model inference anywhere in this loop. It produces a file and
@@ -102,10 +102,15 @@ exit 0
     </array>
 
     <!--
-      Sunday at 18:00 local time. Weekday 0 is Sunday. launchd tracks the
+      Sunday at 08:00 local time. Weekday 0 is Sunday. launchd tracks the
       machine's local time, so this follows daylight saving without help.
 
-      If the Mac is asleep or powered off at 18:00, launchd runs the job once
+      Morning rather than evening because a cold-cache run takes ~5 hours: an
+      18:00 start finishes near 23:00, against a machine its owner is about to
+      shut for the night. From 08:00 the run has the whole day, and the report
+      is waiting before Sunday evening rather than after it.
+
+      If the Mac is asleep or powered off at 08:00, launchd runs the job once
       at the next opportunity rather than skipping the week.
     -->
     <key>StartCalendarInterval</key>
@@ -113,7 +118,7 @@ exit 0
         <key>Weekday</key>
         <integer>0</integer>
         <key>Hour</key>
-        <integer>18</integer>
+        <integer>8</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
