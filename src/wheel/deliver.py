@@ -25,6 +25,7 @@ import subprocess
 import sys
 from typing import Any, Callable, Mapping
 
+from .applescript import quote as _applescript_string
 from .config_io import load_config, wheelops_dir
 
 SUBJECT_PREFIX = "Wheel Engine — Weekly Screen"
@@ -99,12 +100,6 @@ def copy_report(report: str | Path, destination: str | Path) -> Path:
 # ---------------------------------------------------------------------------
 # Apple Mail
 # ---------------------------------------------------------------------------
-
-
-def _applescript_string(value: str) -> str:
-    """One AppleScript string literal, with the two characters that bite it."""
-
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def subject_for(run_date: str) -> str:

@@ -6,6 +6,10 @@
   screen → enrich → render → deliver. Every step is deterministic; there is no
   model inference anywhere in this loop. It produces a file and mails it.
 
+  A step that fails stops the ones after it and posts a notification naming it,
+  because the alternative — an unattended run failing quietly — costs a whole
+  week before anyone notices.
+
   Install with scripts/install-schedule.sh, remove with
   scripts/uninstall-schedule.sh. Installing is a MANUAL step — nothing in the
   build installs this for you.
@@ -51,14 +55,26 @@ echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') — wheel-engine weekly run ==="
 # shellcheck disable=SC1091
 source .venv/bin/activate || exit 1
 
-commands/wheel-screen \
-  &amp;&amp; commands/wheel-enrich \
-  &amp;&amp; commands/wheel-render \
-  &amp;&amp; commands/wheel-deliver
-status=$?
+# Run one step; if it fails, say so out loud before giving up. An unattended
+# weekly run that fails silently is indistinguishable from one that was never
+# scheduled — the operator finds out a week later by noticing the report never
+# arrived. The FAILED line below is the durable record and the notification is
+# what sends someone to read it, so the notification is allowed to fail.
+run_step() {
+  "$@" &amp;&amp; return 0
+  code=$?
+  echo "FAILED $1 (exit $code)"
+  PYTHONPATH=src "$REPO/.venv/bin/python" -m wheel.notify "$1" "exit $code" || true
+  exit "$code"
+}
 
-echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') — finished, exit $status ==="
-exit $status
+run_step commands/wheel-screen
+run_step commands/wheel-enrich
+run_step commands/wheel-render
+run_step commands/wheel-deliver
+
+echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') — finished, exit 0 ==="
+exit 0
         </string>
     </array>
 

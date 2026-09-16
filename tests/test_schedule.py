@@ -34,6 +34,12 @@ def job_script() -> str:
     return plist()["ProgramArguments"][2]
 
 
+def run_step_body() -> str:
+    """The body of the wrapper every fail-stop step is invoked through."""
+
+    return job_script().split("run_step() {")[1].split("}")[0]
+
+
 class PlistTests(unittest.TestCase):
     def test_it_is_well_formed(self) -> None:
         completed = subprocess.run(
@@ -88,10 +94,32 @@ class JobScriptTests(unittest.TestCase):
         positions = [script.index(f"commands/{step}") for step in PIPELINE]
         self.assertEqual(positions, sorted(positions))
 
-    def test_the_steps_are_chained_so_a_failure_stops_the_rest(self) -> None:
+    def test_every_step_runs_through_the_failure_wrapper(self) -> None:
+        """A failing step must stop the ones after it, not log and carry on."""
+
         script = job_script()
-        self.assertEqual(script.count("&&"), len(PIPELINE) - 1)
-        self.assertNotIn(";", script.split("commands/wheel-screen")[1].split("status=")[0])
+        for step in PIPELINE:
+            with self.subTest(step=step):
+                self.assertIn(f"run_step commands/{step}", script)
+
+    def test_the_wrapper_stops_the_run_carrying_the_step_s_status(self) -> None:
+        body = run_step_body()
+        self.assertIn("code=$?", body)
+        self.assertIn('exit "$code"', body)
+
+    def test_a_failed_step_notifies_before_it_gives_up(self) -> None:
+        body = run_step_body()
+        self.assertIn("wheel.notify", body)
+        self.assertLess(body.index("wheel.notify"), body.index('exit "$code"'))
+
+    def test_the_notification_can_find_the_package(self) -> None:
+        """commands/* set PYTHONPATH themselves; a bare python call must too."""
+
+        self.assertIn("PYTHONPATH=src", run_step_body())
+
+    def test_the_notification_cannot_take_down_the_run_it_reports_on(self) -> None:
+        line = next(l for l in run_step_body().splitlines() if "wheel.notify" in l)
+        self.assertIn("|| true", line)
 
     def test_it_activates_the_virtualenv(self) -> None:
         self.assertIn("source .venv/bin/activate", job_script())
@@ -104,10 +132,8 @@ class JobScriptTests(unittest.TestCase):
     def test_it_appends_rather_than_truncating(self) -> None:
         self.assertIn('exec >> "$LOG_DIR/', job_script())
 
-    def test_the_exit_status_survives_the_logging(self) -> None:
-        script = job_script()
-        self.assertIn("status=$?", script)
-        self.assertIn("exit $status", script)
+    def test_a_completed_run_exits_zero(self) -> None:
+        self.assertTrue(job_script().rstrip().endswith("exit 0"), job_script()[-200:])
 
 
 class ScriptTests(unittest.TestCase):
