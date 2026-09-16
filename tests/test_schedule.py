@@ -125,6 +125,28 @@ class JobScriptTests(unittest.TestCase):
         line = next(l for l in run_step_body().splitlines() if "wheel.notify" in l)
         self.assertIn("|| true", line)
 
+    def test_it_holds_idle_sleep_off_for_the_whole_run(self) -> None:
+        """A ~5h run that sleeps mid-fetch resumes only when someone walks past."""
+
+        script = job_script()
+        self.assertIn("/usr/bin/caffeinate", script)
+        self.assertIn("-i", script.split("/usr/bin/caffeinate")[1].split("\n")[0])
+
+    def test_the_keep_awake_is_absolute_because_launchd_has_no_login_path(self) -> None:
+        line = next(l for l in job_script().splitlines() if "caffeinate" in l and not l.strip().startswith("#"))
+        self.assertTrue(line.strip().startswith("/usr/bin/caffeinate"), line)
+
+    def test_it_does_not_keep_the_display_on(self) -> None:
+        line = next(l for l in job_script().splitlines() if "caffeinate" in l and not l.strip().startswith("#"))
+        self.assertNotIn("-d", line)
+
+    def test_the_keep_awake_releases_when_the_run_ends(self) -> None:
+        """`-w $$` ties the assertion to this script's lifetime, however it ends."""
+
+        line = next(l for l in job_script().splitlines() if "caffeinate" in l and not l.strip().startswith("#"))
+        self.assertIn("-w $$", line)
+        self.assertTrue(line.rstrip().endswith("&"), line)
+
     def test_it_activates_the_virtualenv(self) -> None:
         self.assertIn("source .venv/bin/activate", job_script())
 

@@ -55,6 +55,20 @@ exec &gt;&gt; "$LOG_DIR/launchd-$(date +%Y-%m-%d).log" 2&gt;&amp;1
 
 echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') — wheel-engine weekly run ==="
 
+# A cold-cache run is ~5 hours of paced network calls, and launchd does not
+# keep the Mac awake for a job it started. Idle sleep mid-run pauses every
+# fetch until someone touches the keyboard.
+#
+# `-w $$` holds the assertion until THIS script exits, which covers the gaps
+# between steps as well as the steps themselves, and releases on its own
+# however the run ends. Absolute path because a launchd job's PATH is not a
+# login shell's. No `-d`: the screen has no reason to stay on.
+#
+# This does not survive the lid closing on a laptop. Nothing short of
+# `pmset` can, and that is a system-wide setting this job has no business
+# writing.
+/usr/bin/caffeinate -i -w $$ &amp;
+
 # shellcheck disable=SC1091
 source .venv/bin/activate || exit 1
 
