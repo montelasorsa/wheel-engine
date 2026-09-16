@@ -23,7 +23,11 @@ LABEL = "com.adventurelabs.wheel-engine"
 PLIST = SCRIPTS / f"{LABEL}.plist"
 INSTALL = SCRIPTS / "install-schedule.sh"
 UNINSTALL = SCRIPTS / "uninstall-schedule.sh"
+# The fail-stop chain. Backup is deliberately not in here: it runs after the
+# report is already delivered, so it is not allowed to fail the run, and the
+# tests below would mean the opposite of what they say if it were included.
 PIPELINE = ("wheel-screen", "wheel-enrich", "wheel-render", "wheel-deliver")
+BACKUP = "wheel-backup"
 
 
 def plist() -> dict:
@@ -135,6 +139,21 @@ class JobScriptTests(unittest.TestCase):
     def test_a_completed_run_exits_zero(self) -> None:
         self.assertTrue(job_script().rstrip().endswith("exit 0"), job_script()[-200:])
 
+    def test_backup_runs_after_the_report_is_delivered(self) -> None:
+        script = job_script()
+        self.assertLess(
+            script.index(f"commands/{PIPELINE[-1]}"), script.index(f"commands/{BACKUP}")
+        )
+
+    def test_backup_cannot_fail_the_run(self) -> None:
+        """The report is already in the operator's hands by then."""
+
+        script = job_script()
+        self.assertNotIn(f"run_step commands/{BACKUP}", script)
+        line = next(l for l in script.splitlines() if f"commands/{BACKUP}" in l)
+        self.assertIn("||", line)
+        self.assertNotIn("exit", line)
+
 
 class ScriptTests(unittest.TestCase):
     def test_both_scripts_parse(self) -> None:
@@ -168,7 +187,7 @@ class ScriptTests(unittest.TestCase):
 
     def test_install_checks_every_step_it_will_schedule(self) -> None:
         text = INSTALL.read_text()
-        for step in PIPELINE:
+        for step in PIPELINE + (BACKUP,):
             with self.subTest(step=step):
                 self.assertIn(step, text)
 

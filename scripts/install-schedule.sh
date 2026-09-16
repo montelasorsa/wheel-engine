@@ -51,7 +51,7 @@ fi
 
 # --- Everything the job invokes must exist before launchd owns the schedule.
 [[ -x "$REPO/.venv/bin/python" ]] || fail "no virtualenv at $REPO/.venv"
-for step in wheel-screen wheel-enrich wheel-render wheel-deliver; do
+for step in wheel-screen wheel-enrich wheel-render wheel-deliver wheel-backup; do
   [[ -x "$REPO/commands/$step" ]] || fail "missing or non-executable: commands/$step"
 done
 [[ -f "$REPO/config.yaml" ]] || fail "no config.yaml — copy config/example.yaml and edit it"
@@ -76,7 +76,7 @@ launchctl print "$DOMAIN/$LABEL" 2>/dev/null | grep -E "state|runs|last exit" ||
 echo
 cat <<EOF
 Scheduled: Sundays at 18:00 local time.
-Pipeline:  screen -> enrich -> render -> deliver
+Pipeline:  screen -> enrich -> render -> deliver -> backup
 Logs:      $LOG_DIR/launchd-YYYY-MM-DD.log
 
 The first run will ask for permission to control Mail. Approve it, or the

@@ -3,12 +3,15 @@
 <!--
   Wheel Engine — weekly pipeline, Sundays at 18:00 local time.
 
-  screen → enrich → render → deliver. Every step is deterministic; there is no
-  model inference anywhere in this loop. It produces a file and mails it.
+  screen → enrich → render → deliver → backup. Every step is deterministic;
+  there is no model inference anywhere in this loop. It produces a file and
+  mails it.
 
   A step that fails stops the ones after it and posts a notification naming it,
   because the alternative — an unattended run failing quietly — costs a whole
-  week before anyone notices.
+  week before anyone notices. Backup is the exception: it runs after delivery
+  has already put the report in the operator's hands, so it warns and the run
+  still succeeds.
 
   Install with scripts/install-schedule.sh, remove with
   scripts/uninstall-schedule.sh. Installing is a MANUAL step — nothing in the
@@ -72,6 +75,12 @@ run_step commands/wheel-screen
 run_step commands/wheel-enrich
 run_step commands/wheel-render
 run_step commands/wheel-deliver
+
+# Backup runs OUTSIDE run_step on purpose. By this line the report has been
+# rendered, copied and mailed — the week's work is already in the operator's
+# hands, and an unreachable iCloud folder is not a reason to call that a failed
+# run. It warns and the run still exits 0.
+commands/wheel-backup || echo "WARN backup failed — the report already delivered"
 
 echo "=== $(date '+%Y-%m-%d %H:%M:%S %Z') — finished, exit 0 ==="
 exit 0
