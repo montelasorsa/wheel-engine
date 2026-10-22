@@ -1,16 +1,47 @@
 # Core + MCP data boundary.
-yfinance>=0.2,<1
-pandas>=2.0,<3
-numpy>=1.24,<3
-PyYAML>=6.0,<7
-lxml>=5,<7
+yfinance==0.2.66
+pandas==2.3.3
+numpy==2.5.1
+PyYAML==6.0.3
+lxml==6.1.1
 # Universe enumeration and the FMP fallback both fetch with an identifying UA
 # rather than the default agent.
-requests>=2.31,<3
+requests==2.34.2
 # Secret loading at the Layer 0 edge: wheel_mcp/fmp.py reads FMP_API_KEY from
 # .env. Layer 1 never sees a key -- enforced by tests/test_provider_isolation.py.
-python-dotenv>=1.0,<2
+python-dotenv==1.2.2
 
 # Quarantined in legacy/ -- drop this once legacy/ is deleted.
 #   Jinja2 : legacy/html_render.py (HTML report)
-Jinja2>=3.1,<4
+Jinja2==3.1.6
+
+# Tests.
+pytest==9.1.1
+
+# Transitive -- pinned from `pip freeze` on Python 3.12 so a clean install
+# reproduces the environment the test suite was run against.
+beautifulsoup4==4.15.0
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.4.9
+curl_cffi==0.16.0
+frozendict==2.4.7
+idna==3.18
+iniconfig==2.3.0
+MarkupSafe==3.0.3
+multitasking==0.0.13
+packaging==26.3
+peewee==4.3.0
+platformdirs==4.11.0
+pluggy==1.6.0
+protobuf==7.35.1
+pycparser==3.0
+Pygments==2.20.0
+python-dateutil==2.9.0.post0
+pytz==2026.3.post1
+six==1.17.0
+soupsieve==2.9.1
+typing_extensions==4.16.0
+tzdata==2026.3
+urllib3==2.7.0
+websockets==17.0.1
