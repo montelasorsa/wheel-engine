@@ -28,9 +28,11 @@ sibling folder, `~/Developer/WheelOps/`, and never enters this repo.
 
 ## Setup
 
+Requires Python 3.12 or later: the pinned numpy has no build for 3.11.
+
 ```bash
-cd ~/Developer/wheel-engine
-python3 -m venv .venv
+git clone https://github.com/montelasorsa/wheel-engine.git && cd wheel-engine
+python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp config/example.yaml config.yaml   # edit paths; config.yaml is gitignored
 cp .env.example .env                 # only needed if the FMP fallback is enabled

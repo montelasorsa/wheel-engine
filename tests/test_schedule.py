@@ -67,8 +67,16 @@ class PlistTests(unittest.TestCase):
 
         self.assertIs(plist()["RunAtLoad"], False)
 
-    def test_the_working_directory_is_this_repo(self) -> None:
-        self.assertEqual(Path(plist()["WorkingDirectory"]), REPO.resolve())
+    def test_the_working_directory_is_the_repo_the_script_enters(self) -> None:
+        """Whether that path is THIS checkout is machine state, not code.
+
+        Asserting it here failed every clone at any other path. The guard
+        lives where it matters: install-schedule.sh refuses to install a plist
+        whose WorkingDirectory disagrees with where the repo actually is, and
+        test_install_validates_before_it_copies holds it to that.
+        """
+
+        self.assertIn(f'REPO="{plist()["WorkingDirectory"]}"', job_script())
 
     def test_the_bootstrap_log_sits_under_wheelops(self) -> None:
         for key in ("StandardOutPath", "StandardErrorPath"):
@@ -80,9 +88,11 @@ class PlistTests(unittest.TestCase):
     def test_wheelops_is_the_repo_sibling(self) -> None:
         """AGENTS.md §3: operational data lives beside the repo, never inside."""
 
+        repo = Path(plist()["WorkingDirectory"])
         logs = Path(plist()["StandardOutPath"]).parent
-        self.assertEqual(logs.parent.parent, REPO.resolve().parent)
-        self.assertNotIn(REPO.name, logs.parts)
+        self.assertEqual(logs.parent.parent, repo.parent)
+        self.assertNotIn(repo.name, logs.parts)
+        self.assertIn(f'LOG_DIR="{logs}"', job_script())
 
 
 class JobScriptTests(unittest.TestCase):
