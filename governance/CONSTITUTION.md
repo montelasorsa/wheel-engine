@@ -1,6 +1,6 @@
 ---
 VERSION: 2.1
-DATE: 2026-08-XX
+DATE: 2026-09-08
 SUPERSEDES: Strategy Constitution v1.0 (July 2026, `adventure-labs-strategy-constitution-v1.md`)
 STATUS: canonical
 MODULE: 1 — The Wheel Engine
@@ -455,7 +455,7 @@ under pressure does not get a vote.
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | Jul 2026 | Initial draft. Articles I–XI. No rule ID citations. |
-| **2.1** | **2026-08-XX** | **Article XIII (Review Cadence) removed in full. Article IX §9.3 (prediction field), §9.4 (divergence logging) and §9.5 (snapshot reference for decisions) removed.** The decision log and the calibration harness that scored it are retired; the screener is the sole product. §10.1's cadence survives as a bare quarterly constraint, no longer pointing at a deleted Article. §10.3 keeps its requirement of a stated hypothesis and softens the mechanism — evaluation is the operator's work, external to the tool. Source Brief AL-OPS-05 marked retired, text preserved for the audit trail. **§13.6's annual re-examination of §11.2 is lost with Article XIII and is not replaced here** — see the open item in AGENTS.md §10. |
+| **2.1** | **2026-09-08** | **Article XIII (Review Cadence) removed in full. Article IX §9.3 (prediction field), §9.4 (divergence logging) and §9.5 (snapshot reference for decisions) removed.** The decision log and the calibration harness that scored it are retired; the screener is the sole product. §10.1's cadence survives as a bare quarterly constraint, no longer pointing at a deleted Article. §10.3 keeps its requirement of a stated hypothesis and softens the mechanism — evaluation is the operator's work, external to the tool. Source Brief AL-OPS-05 marked retired, text preserved for the audit trail. **§13.6's annual re-examination of §11.2 is lost with Article XIII and is not replaced here** — see the open item in AGENTS.md §10. |
 | **2.0** | **2026-08-03** | Added Article XI (Portfolio Construction), XII (Return Expectations), XIII (Review Cadence); Scope moved to XIV. **Amendment retained at Article X.** Every Article now cites Source Brief v2.0 rule IDs. §2.3 fixed price band replaced with derived zones. Added §2.4 market cap, §2.6 chart position, §2.7 IV disqualifier, §2.11 thesis gate, §3.4 assignment capacity display, §4.10 no-DTE-management, §9.3 prediction field, §10.4/§10.5 amendment asymmetry and notice period. |
 
 ---

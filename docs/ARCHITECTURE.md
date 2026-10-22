@@ -24,7 +24,7 @@ layer after it is a pure function of what that layer wrote down.
   Layer 3   the operator      sole execution authority (thinkorswim)
 ```
 
-Layer 2 — decision support — **was retired on 2026-09-08** (`c0d43ec`). The
+Layer 2 — decision support — **was retired on 2026-09-08** (`38a6e97`). The
 numbering is kept rather than closed up: the Constitution and Source Brief cite
 these layer numbers, and renumbering them to make a diagram tidy would break
 every citation. See [DECISIONS.md](DECISIONS.md) for the reasoning; the short
@@ -62,7 +62,7 @@ all. ~5,300 names, published daily as CSV, cached to `WheelOps/universe/`.
 **Two-stage fetch.** A deep snapshot costs 5 provider calls. Spending them on
 names rejected on price alone costs ~20 minutes and learns nothing, so Stage 1
 is a cheap metadata scan that applies the disqualifiers a single `info` call can
-answer — including **AL-SEL-07**, the ETF structural screen (`d1a8fb6`), which
+answer — including **AL-SEL-07**, the ETF structural screen (`161ee87`), which
 sits at Stage 1 so a structured product costs zero deep calls.
 
 **The Stage 1 cache is keyed by ISO week** and reads the current week and the
@@ -107,7 +107,7 @@ whole suite runs in under a second.
 Five PASS/FLAG/FAIL rules can express only a few dozen distinct composites. The
 2026-08-11 run tied 255 of 1,285 names at exactly 100 and broke ties
 alphabetically, so the "top 5" was the alphabetically-first five of 111 equals.
-Continuous scoring (`1334b59`) replaced the buckets: hard gates stay binary, and
+Continuous scoring (`b124465`) replaced the buckets: hard gates stay binary, and
 the five ranking rules emit 0–100 from a piecewise anchor table. The same run
 then produced 1,171 distinct scores for 1,171 names.
 
@@ -126,7 +126,7 @@ This is mechanical, not aspirational: `tests/golden/live/` holds five real
 snapshots from the first live acquisition, `expected_scores.json` freezes every
 verdict, reason, metric and composite computed from them, and
 `test_golden_baseline.py` recomputes and compares exactly. Frozen 2026-08-07
-(`aa0c59e`). Regenerate with `--regenerate`; the diff of `expected_scores.json`
+(`87c68c3`). Regenerate with `--regenerate`; the diff of `expected_scores.json`
 is the review artifact.
 
 Hand-built fixtures stay as unit-level edge cases. The live set is the
@@ -169,7 +169,7 @@ The whole run is held awake by `caffeinate -i` for its duration, because
 launchd does not keep the Mac awake for a job it started and a ~5h run would
 otherwise pause at the first idle sleep.
 
-**Delivery is two things with different stakes** (`0e4df50`). The file copy to
+**Delivery is two things with different stakes** (`e5a1c9d`). The file copy to
 `~/Downloads/wheel/` is the artifact and the one delivery failure that is fatal.
 The email is a convenience: Mail is driven through `osascript` rather than SMTP
 because the account is already configured there and the alternative is a

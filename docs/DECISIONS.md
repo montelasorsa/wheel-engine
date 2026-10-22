@@ -16,9 +16,13 @@ entry stays and says so — AL-SEL-07 below is the worked example.
 are the version of record and this log never overrides them.
 
 **Dates corrected on extraction.** Three entries below were dated `2026-08-XX`
-in the table. All three were committed **2026-09-08** — `b81c1fe` (realign),
-`d51e607` (schedule), `c0d43ec` (Layer 2 retirement) — and are dated and
+in the table. All three were committed **2026-09-08** — `c89cb28` (realign),
+`cfadc04` (schedule), `38a6e97` (Layer 2 retirement) — and are dated and
 ordered accordingly here. Nothing else was changed.
+
+**Commit hashes are post-rewrite.** History was rewritten on 2026-10-15 before
+publication; every hash cited in this log and the docs it points to resolves
+against the current history.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 VERSION: 1.2
-DATE: 2026-08-XX
+DATE: 2026-09-08
 SUPERSEDES: Investment Proposal v1.0 (July 2026, `adventure-labs-wheel-engine-proposal-v1.pdf`)
 STATUS: canonical
 DELIVERABLE: 3 of 8
@@ -843,7 +843,7 @@ Carried from Source Brief v2.0, Part IV. Listed here because each one bounds a c
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | Jul 2026 | Initial proposal. Cited governance documents that did not yet exist. |
-| **1.2** | **2026-08-XX** | Realigned to Constitution v2.1 and the retirement of Layer 2 decision-support. Every reference to Article XIII, §13.3, §13.4, §13.6, §9.3 and §9.5 resolved: retired features deleted (§7.5 override-evaluation bullet, §7.6 calibration/divergence/rule-gap components, Appendix A's AL-OPS-05 row), surviving concepts rewritten without the retired mechanism (§6.2 Track C, §6.3 criterion 4, §7.3 Layer 3, §9.3 objection, §10 Phase 3), and surviving governance recited against what exists — Article X for the amendment cadence, Article IX §9.1–§9.2 for trade logging (§3.2, §4.3, §4.6, §10 Phase 5). **Two claims are deliberately weaker than in v1.1:** §9.3 no longer says the judgment layer's contribution is measurable, only auditable; §7.6 no longer promises a scheduled learning loop. §7 architecture, §4 sizing, §5 returns and §8 universe are otherwise unchanged. |
+| **1.2** | **2026-09-08** | Realigned to Constitution v2.1 and the retirement of Layer 2 decision-support. Every reference to Article XIII, §13.3, §13.4, §13.6, §9.3 and §9.5 resolved: retired features deleted (§7.5 override-evaluation bullet, §7.6 calibration/divergence/rule-gap components, Appendix A's AL-OPS-05 row), surviving concepts rewritten without the retired mechanism (§6.2 Track C, §6.3 criterion 4, §7.3 Layer 3, §9.3 objection, §10 Phase 3), and surviving governance recited against what exists — Article X for the amendment cadence, Article IX §9.1–§9.2 for trade logging (§3.2, §4.3, §4.6, §10 Phase 5). **Two claims are deliberately weaker than in v1.1:** §9.3 no longer says the judgment layer's contribution is measurable, only auditable; §7.6 no longer promises a scheduled learning loop. §7 architecture, §4 sizing, §5 returns and §8 universe are otherwise unchanged. |
 | **1.1** | **2026-08-03** | All citations realigned to Source Brief v2.0 and Constitution v2.0 (corrected from v2.1). §7 rewritten: four-layer design with acquisition layer, snapshot-then-score, convergence constraint, reporting surface removed, learning loop and two-track evaluation added. §4.3 zones and §4.4 sector construction added. §4.2 terminology corrected (monitored / thesis-backed / concurrent). §8.1 expanded to 13 criteria; §8.3 Stage 4 promoted to a gate. §6.3 criterion 8 added. §9.6 objection added. Appendix B added. Reissue trigger for v2.0 restated. |
 
 ---

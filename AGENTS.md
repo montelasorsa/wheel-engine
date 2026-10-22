@@ -81,7 +81,7 @@ A `.gitignore` entry can be deleted. Physical separation cannot.
 |---|---|---|---|
 | **0 · Acquisition** | Fetch external data, write to snapshot storage | `src/wheel_mcp/` | **No interpretation.** Fetch and write only. The ONLY place a provider import is allowed. |
 | **1 · Rules engine** | Score snapshots deterministically | `src/wheel/` | **Same input → same output.** No model inference. No provider calls. Fully testable offline. |
-| **2 · Decision support** | ~~Present structured options for judgment calls~~ | `legacy/` | **RETIRED 2026-09-08** (`c0d43ec`). Evaluating judgment is the operator's work, not the tool's. |
+| **2 · Decision support** | ~~Present structured options for judgment calls~~ | `legacy/` | **RETIRED 2026-09-08** (`38a6e97`). Evaluating judgment is the operator's work, not the tool's. |
 | **3 · Operator** | Approves, rejects, or overrides | Monte (thinkorswim) | **Sole execution authority.** |
 
 The layer numbers keep the gap at 2 rather than closing up: the Constitution and
@@ -135,7 +135,7 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
    **DEFERRED INDEFINITELY.** It was deferred until Layer 2 was live, and Layer 2 was
    retired on 2026-09-08, so there is no longer a date it returns on. `.mcp.json` moved
    to `legacy/` rather than sit in the repo pointing at a module that does not exist.
-6. **Golden-file baseline freeze** — ✅ **DONE 2026-08-07** (`aa0c59e`). Five live snapshots
+6. **Golden-file baseline freeze** — ✅ **DONE 2026-08-07** (`87c68c3`). Five live snapshots
    from the 2026-08-06 run, every verdict frozen in `expected_scores.json`. §4.3 is now
    mechanical: regenerate with `--regenerate`, and the diff is the review artifact.
 
