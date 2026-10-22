@@ -1,7 +1,7 @@
 # AGENTS.md — Wheel Engine
 
-**Version 2.1 · 2026-09-17**
-Supersedes: AGENTS.md v2.0
+**Version 2.2 · 2026-10-22**
+Supersedes: AGENTS.md v2.1
 
 ---
 
@@ -25,7 +25,7 @@ The tool **proposes**. The operator **decides**. Nothing executes a trade.
 | Strategy Constitution | **v2.1** | `governance/CONSTITUTION.md` | Binding rules. When code and Constitution disagree, Constitution wins. |
 | ScottishTrader Source Brief | **v2.1** | `governance/SOURCE-BRIEF.md` | Rule definitions, rationale, gap register. Every rule ID lives here. |
 | Investment Proposal | **v1.2** | `governance/PROPOSAL.md` | Architecture, validation criteria, sizing logic. |
-| This file | **v2.1** | repo root | Agent instructions. |
+| This file | **v2.2** | repo root | Agent instructions. |
 
 The distilled Reddit transcripts are **not in the repo** — the source PDF lives
 in `The Wheel/Research/` outside it. Every rule they informed is already written
@@ -122,13 +122,18 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 
 ## §5 Build order (dependency-sequenced)
 
-1. **Layer 0 snapshot format** — define the JSON contract that `yahoo.py` writes and Layer 1 reads.
-   This is the interface between layers and must be right before either side is built out.
-2. **Layer 1 scorers** — screening filters mapped to ST-SEL-01 through ST-SEL-14 + AL-SEL-02
-   through AL-SEL-06. Zone derivation. Sector checks. Each scorer has a golden-file test.
-3. **`/wheel-screen` command** — end-to-end: fetch → snapshot → score → produce `weeks/YYYY-MM-DD.md`
-4. **Weekly automation — launchd schedule + delivery pipeline** — `scripts/` holds the
-   `com.adventurelabs.wheel-engine` agent and its install/uninstall scripts. Sundays at 08:00:
+1. **Layer 0 snapshot format** — ✅ **DONE 2026-08-06** (`02c85bf`). The JSON contract that
+   `yahoo.py` writes and Layer 1 reads, specified in `docs/snapshot-schema.md`. This is the
+   interface between layers and had to be right before either side was built out.
+2. **Layer 1 scorers** — ✅ **DONE 2026-08-06** (`02c85bf`, `633278b`). Screening filters mapped
+   to ST-SEL-01 through ST-SEL-14 + AL-SEL-02 through AL-SEL-06. Zone derivation. Sector checks.
+   Each scorer has a golden-file test. AL-SEL-07, minted 2026-08-16 (`161ee87`), is enforced
+   earlier — at the Stage 1 scan in `src/wheel/universe.py`, before a deep snapshot is spent.
+3. **`/wheel-screen` command** — ✅ **DONE 2026-08-06** (`02f7be9`). End-to-end: fetch → snapshot
+   → score → produce `weeks/YYYY-MM-DD.md`.
+4. **Weekly automation — launchd schedule + delivery pipeline** — ✅ **DONE 2026-09-08**
+   (`cfadc04`), hardened for an unattended run 2026-09-16 (`9e4d55d`–`56827d3`). `scripts/` holds
+   the `com.adventurelabs.wheel-engine` agent and its install/uninstall scripts. Sundays at 08:00:
    screen → enrich → render → deliver → backup. A failing step stops the rest and notifies;
    backup is the exception and cannot fail the run. Installing is manual, always.
 5. **`wheel_mcp/server.py`** — MCP wrapper so Claude can pull data mid-conversation.
@@ -150,7 +155,7 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 | Fallback (Layer 0) | FMP | **DISABLED.** `providers.fmp_enabled` defaults to false and the local config has no `providers` block, so it does not run. Code retained: readmitted 2026-08-11 as a null-fill over the four fields in `wheel_mcp.fmp.FILLABLE_FIELDS`, never parallel, never primary, key from `.env`. With it off, a null hard-gate field fails closed — ~39 names on the 2026-08-16 run. |
 | Universe (Layer 0) | CBOE equity options symbol directory | **Second source, added 2026-08-11.** Enumeration only — CBOE listing is not a quality filter. ~5,300 names, published daily as CSV. Cached to `WheelOps/universe/`, fetched at most once a day, reused stale on fetch failure with a loud warning. |
 | Data format | JSON snapshots, CSV positions, Markdown + static HTML output | All human-readable, all diffable |
-| Testing | pytest, golden files | `PYTHONPATH=src pytest tests/` — run < 1s with no network |
+| Testing | pytest, golden files | `PYTHONPATH=src pytest tests/` — runs in ~1s with no network |
 | CLI | Python entry points or shell scripts in `commands/` | No web server, no Flask, no UI |
 | PDF generation | pandoc + wkhtmltopdf (governance docs only) | Not used for operational output |
 
@@ -211,7 +216,7 @@ A missing data field in a snapshot does not crash the scorer or silently drop th
 
 ## §9 Open gaps affecting the build
 
-From Source Brief v2.0 Part IV. Each one bounds a claim in the code.
+From Source Brief v2.1 Part IV. Each one bounds a claim in the code.
 
 | Gap | What it blocks | Priority | Resolution path |
 |---|---|---|---|
