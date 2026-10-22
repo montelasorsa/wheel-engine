@@ -1,6 +1,6 @@
 ---
-VERSION: 1.2
-DATE: 2026-09-08
+VERSION: 1.3
+DATE: 2026-10-22
 SUPERSEDES: Investment Proposal v1.0 (July 2026, `adventure-labs-wheel-engine-proposal-v1.pdf`)
 STATUS: canonical
 DELIVERABLE: 3 of 8
@@ -26,8 +26,8 @@ value of writing it this way is that a proposal which must survive adversarial r
 whose assumptions have been made explicit — which is precisely what protects the capital when the
 market makes them uncomfortable.
 
-**Governing documents.** Strategy Constitution **v2.0** (binding rules) · ScottishTrader Source
-Brief **v2.0** (methodology provenance) · Distilled Reddit Transcripts (primary source). Rule
+**Governing documents.** Strategy Constitution **v2.1** (binding rules) · ScottishTrader Source
+Brief **v2.1** (methodology provenance) · Distilled Reddit Transcripts (primary source). Rule
 identifiers throughout (`ST-`, `AL-`) reference the Source Brief; Article and § references reference
 the Constitution.
 
@@ -577,8 +577,12 @@ layer because it is the only nondeterministic boundary in the system.
 |---|---|---|---|
 | **0 · Acquisition** | Provider-isolated fetch; raw response written timestamped to durable snapshot storage | Fetch and write. **No interpretation whatsoever.** | Records. Never scores. |
 | **1 · Rules engine** | Deterministic code; no model inference | Selection screening against the ST-SEL set, zone derivation, sector and clustering checks, contract sizing against reserve, net stock cost arithmetic, GTC order construction, DTE and delta filters, roll productivity floor at ≈$0.01, compliance monitoring | Executes. Fully auditable. |
-| **2 · Decision support** | Model inference, Constitution-grounded | Presents structured options for ambiguous calls — roll conviction, crash triage, thesis-break assessment — each mapped to a governing rule ID with reasoning stated | **Proposes only. Never executes.** |
+| **2 · Decision support** *(retired 2026-09-08)* | Model inference, Constitution-grounded | Presents structured options for ambiguous calls — roll conviction, crash triage, thesis-break assessment — each mapped to a governing rule ID with reasoning stated | **Proposes only. Never executes.** |
 | **3 · Operator** | Human | Approves, rejects, or overrides. Overrides logged with the rule ID they depart from. | **Sole execution authority.** |
+
+Layer 2 was retired on 2026-09-08 with Constitution v2.1; the screener — Layers 0 and 1 — is the
+sole product. Its row is kept as the record of what was designed, and the layer numbers are kept
+because the Constitution and Source Brief cite them.
 
 ### 7.4 Snapshot-then-score
 
@@ -598,7 +602,12 @@ The general form: **isolate nondeterminism at the edge and convert it into a fix
 data changes every second; the snapshot converts that boundary into something everything downstream
 can be tested against.
 
-### 7.5 Design rules for Layer 2
+### 7.5 Design rules for Layer 2 *(retired 2026-09-08)*
+
+*Kept as the record of what was designed. The first and third rules outlive the layer: the
+screener still cites a rule ID for every verdict, and ambiguity is still surfaced rather than
+resolved.*
+
 
 — **Every recommendation must cite a rule ID.** A recommendation that cannot be mapped to a
 Constitution Article or Source Brief rule is a drift signal and is surfaced as such.
@@ -792,7 +801,7 @@ alternative.
 | **1 · Universe research** | Weeks 2–5 | Four-stage protocol (§8.3); `notes/<TICKER>.md` per name; proposal reissued as **v2.0** with §8 completed | 3–5 names with written business cases and kill-switch conditions |
 | **2 · Track A + B** | Weeks 4–10 | Paid historical source procured; mechanical floor simulation across 2019–2025; risk envelope characterisation; drawdown tolerance stated in writing | Criteria 1, 2, 7 assessed |
 | **3 · Track C** | Weeks 6–16 | 60+ days live-price paper trading; full position and reasoning logs; Layer 1 rules engine running in monitoring mode alongside | Criteria 3–6, 8 met |
-| **4 · Micro-live** | Weeks 16–20 | $5,000 deployed; 1–2 concurrent positions; manual execution; Layer 2 decision support introduced in advisory mode | 30 days at ≥90% compliance with real capital |
+| **4 · Micro-live** | Weeks 16–20 | $5,000 deployed; 1–2 concurrent positions; manual execution | 30 days at ≥90% compliance with real capital |
 | **5 · Full pilot** | Week 20+ | Scale to $9–15K; 3–5 names in rotation; monthly reconciliation; **quarterly amendment window under Constitution Article X** | Ongoing — compliance thresholds remain live |
 
 Phases 1 and 2 run concurrently; Phase 3 requires a named universe from Phase 1. **The gating
@@ -825,7 +834,7 @@ its implementation in the rules engine.
 
 ## Appendix B — Open Gaps Affecting This Proposal
 
-Carried from Source Brief v2.0, Part IV. Listed here because each one bounds a claim made above.
+Carried from Source Brief v2.1, Part IV. Listed here because each one bounds a claim made above.
 
 | Gap | Bounds | Priority |
 |---|---|---|
@@ -843,6 +852,7 @@ Carried from Source Brief v2.0, Part IV. Listed here because each one bounds a c
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | Jul 2026 | Initial proposal. Cited governance documents that did not yet exist. |
+| **1.3** | **2026-10-22** | Reference pass. Layer 2's retirement carried through to the places v1.2 left describing it as live: §7.3's Layer 2 row and §7.5 marked retired, their text kept as the record of what was designed; §10 Phase 4 no longer introduces it. The preamble and Appendix B now cite Constitution v2.1 and Source Brief v2.1, matching Appendix A. Checked that no live reference remains to Constitution §9.3–§9.5, Article XIII or §13.x — the mentions that remain are history, and §9.3 in the v1.2 row is this document's own objection. Sizing, returns, universe and validation criteria unchanged. |
 | **1.2** | **2026-09-08** | Realigned to Constitution v2.1 and the retirement of Layer 2 decision-support. Every reference to Article XIII, §13.3, §13.4, §13.6, §9.3 and §9.5 resolved: retired features deleted (§7.5 override-evaluation bullet, §7.6 calibration/divergence/rule-gap components, Appendix A's AL-OPS-05 row), surviving concepts rewritten without the retired mechanism (§6.2 Track C, §6.3 criterion 4, §7.3 Layer 3, §9.3 objection, §10 Phase 3), and surviving governance recited against what exists — Article X for the amendment cadence, Article IX §9.1–§9.2 for trade logging (§3.2, §4.3, §4.6, §10 Phase 5). **Two claims are deliberately weaker than in v1.1:** §9.3 no longer says the judgment layer's contribution is measurable, only auditable; §7.6 no longer promises a scheduled learning loop. §7 architecture, §4 sizing, §5 returns and §8 universe are otherwise unchanged. |
 | **1.1** | **2026-08-03** | All citations realigned to Source Brief v2.0 and Constitution v2.0 (corrected from v2.1). §7 rewritten: four-layer design with acquisition layer, snapshot-then-score, convergence constraint, reporting surface removed, learning loop and two-track evaluation added. §4.3 zones and §4.4 sector construction added. §4.2 terminology corrected (monitored / thesis-backed / concurrent). §8.1 expanded to 13 criteria; §8.3 Stage 4 promoted to a gate. §6.3 criterion 8 added. §9.6 objection added. Appendix B added. Reissue trigger for v2.0 restated. |
 

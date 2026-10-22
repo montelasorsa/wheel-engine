@@ -4,7 +4,7 @@ DATE: 2026-09-08
 SUPERSEDES: Strategy Constitution v1.0 (July 2026, `adventure-labs-strategy-constitution-v1.md`)
 STATUS: canonical
 MODULE: 1 — The Wheel Engine
-BINDING_REFERENCE: Source Brief v2.0
+BINDING_REFERENCE: Source Brief v2.1
 ---
 
 # AdVenture Labs — Strategy Constitution
@@ -455,7 +455,8 @@ under pressure does not get a vote.
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | Jul 2026 | Initial draft. Articles I–XI. No rule ID citations. |
-| **2.1** | **2026-09-08** | **Article XIII (Review Cadence) removed in full. Article IX §9.3 (prediction field), §9.4 (divergence logging) and §9.5 (snapshot reference for decisions) removed.** The decision log and the calibration harness that scored it are retired; the screener is the sole product. §10.1's cadence survives as a bare quarterly constraint, no longer pointing at a deleted Article. §10.3 keeps its requirement of a stated hypothesis and softens the mechanism — evaluation is the operator's work, external to the tool. Source Brief AL-OPS-05 marked retired, text preserved for the audit trail. **§13.6's annual re-examination of §11.2 is lost with Article XIII and is not replaced here** — see the open item in AGENTS.md §10. |
+| **2.1 errata** | **2026-10-22** | Editorial. No Article text changed, so this is not an amendment under Article X and the version stands. Front-matter `BINDING_REFERENCE` corrected from Source Brief v2.0 to v2.1: the v2.1 change itself marked AL-OPS-05 retired in Source Brief v2.1, so the v2.0 reference was stale from the day v2.1 was adopted. The v2.1 row's pointer to the open item now names `docs/DECISIONS.md`, where the decision log moved from AGENTS.md §10. |
+| **2.1** | **2026-09-08** | **Article XIII (Review Cadence) removed in full. Article IX §9.3 (prediction field), §9.4 (divergence logging) and §9.5 (snapshot reference for decisions) removed.** The decision log and the calibration harness that scored it are retired; the screener is the sole product. §10.1's cadence survives as a bare quarterly constraint, no longer pointing at a deleted Article. §10.3 keeps its requirement of a stated hypothesis and softens the mechanism — evaluation is the operator's work, external to the tool. Source Brief AL-OPS-05 marked retired, text preserved for the audit trail. **§13.6's annual re-examination of §11.2 is lost with Article XIII and is not replaced here** — see the open item in `docs/DECISIONS.md`. |
 | **2.0** | **2026-08-03** | Added Article XI (Portfolio Construction), XII (Return Expectations), XIII (Review Cadence); Scope moved to XIV. **Amendment retained at Article X.** Every Article now cites Source Brief v2.0 rule IDs. §2.3 fixed price band replaced with derived zones. Added §2.4 market cap, §2.6 chart position, §2.7 IV disqualifier, §2.11 thesis gate, §3.4 assignment capacity display, §4.10 no-DTE-management, §9.3 prediction field, §10.4/§10.5 amendment asymmetry and notice period. |
 
 ---
